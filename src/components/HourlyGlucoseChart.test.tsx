@@ -18,9 +18,9 @@ vi.mock('echarts', () => {
 });
 
 describe('HourlyGlucoseChart Component', () => {
-  const mockStats = Array.from({ length: 24 }, (_, i) => ({
-    hour: i,
-    timeLabel: `${i}:00`,
+  const mockStats = Array.from({ length: 96 }, (_, i) => ({
+    binIndex: i,
+    timeLabel: `${Math.floor((i * 15) / 60)}:${((i * 15) % 60).toString().padStart(2, '0')}`,
     p15: 90,
     p75: 150,
     mean: 120,

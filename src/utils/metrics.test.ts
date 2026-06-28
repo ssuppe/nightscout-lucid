@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGlucoseMetrics, calculateAGPPercentiles, calculateHourlyTIR, calculateHourlyGlucoseStats } from './metrics';
+import { calculateGlucoseMetrics, calculateAGPPercentiles, calculateHourlyTIR, calculate15MinGlucoseStats } from './metrics';
 import { GlucoseUnit } from './nightscout';
 import type { NightscoutEntry } from './nightscout';
 
@@ -164,11 +164,11 @@ describe('Glucose Metrics Calculations', () => {
     });
   });
 
-  describe('Hourly Glucose Stats Calculations', () => {
-    it('calculates hourly glucose mean, p15, and p75 correctly', () => {
+  describe('15-Min Glucose Stats Calculations', () => {
+    it('calculates 15-minute glucose mean, p15, and p75 correctly', () => {
       const date = new Date();
       date.setHours(14); // 2 PM
-      date.setMinutes(30);
+      date.setMinutes(35); // Bin index 14 * 4 + 2 = 58
 
       const values = [80, 100, 120, 140, 160];
       const entries = values.map((val, idx) => ({
@@ -179,17 +179,17 @@ describe('Glucose Metrics Calculations', () => {
         type: 'sgv',
       }));
 
-      const hourlyStats = calculateHourlyGlucoseStats(entries, GlucoseUnit.MGDL);
-      expect(hourlyStats.length).toBe(24);
+      const stats15 = calculate15MinGlucoseStats(entries, GlucoseUnit.MGDL);
+      expect(stats15.length).toBe(96);
 
-      const hour14 = hourlyStats[14];
-      expect(hour14.timeLabel).toBe('2 PM');
-      expect(hour14.mean).toBe(120);
-      expect(hour14.p15).toBe(92);
-      expect(hour14.p75).toBe(140);
+      const bin58 = stats15[58];
+      expect(bin58.timeLabel).toBe('14:30');
+      expect(bin58.mean).toBe(120);
+      expect(bin58.p15).toBe(92);
+      expect(bin58.p75).toBe(140);
 
-      // Other hours default to values copied from hour 14
-      expect(hourlyStats[0].mean).toBe(120);
+      // Other bins default to values copied from bin 58
+      expect(stats15[0].mean).toBe(120);
     });
   });
 });

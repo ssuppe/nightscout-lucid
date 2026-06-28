@@ -320,33 +320,39 @@ export function calculateHourlyTIR(entries: NightscoutEntry[]): HourlyTIR[] {
   return result;
 }
 
-export interface HourlyGlucoseStats {
-  hour: number;
+export interface Glucose15MinStats {
+  binIndex: number;
   timeLabel: string;
   p15: number;
   p75: number;
   mean: number;
 }
 
-export function calculateHourlyGlucoseStats(
+export function calculate15MinGlucoseStats(
   entries: NightscoutEntry[],
   units: GlucoseUnit
-): HourlyGlucoseStats[] {
+): Glucose15MinStats[] {
   const validEntries = entries.filter((e) => e.sgv && Number.isFinite(e.sgv));
 
-  const rawStats = Array.from({ length: 24 }, (_, hour) => {
-    const hourEntries = validEntries.filter((e) => new Date(e.date).getHours() === hour);
-    const count = hourEntries.length;
+  const rawStats = Array.from({ length: 96 }, (_, binIndex) => {
+    const startMinutes = binIndex * 15;
+    const endMinutes = startMinutes + 15;
 
-    let timeLabel = '';
-    if (hour === 0) timeLabel = '12 AM';
-    else if (hour < 12) timeLabel = `${hour} AM`;
-    else if (hour === 12) timeLabel = '12 PM';
-    else timeLabel = `${hour - 12} PM`;
+    const binEntries = validEntries.filter((e) => {
+      const d = new Date(e.date);
+      const minutes = d.getHours() * 60 + d.getMinutes();
+      return minutes >= startMinutes && minutes < endMinutes;
+    });
+
+    const count = binEntries.length;
+
+    const hour = Math.floor(startMinutes / 60);
+    const minute = startMinutes % 60;
+    const timeLabel = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 
     if (count === 0) {
       return {
-        hour,
+        binIndex,
         timeLabel,
         p15: -1,
         p75: -1,
@@ -354,12 +360,12 @@ export function calculateHourlyGlucoseStats(
       };
     }
 
-    const sorted = hourEntries.map((e) => e.sgv).sort((a, b) => a - b);
+    const sorted = binEntries.map((e) => e.sgv).sort((a, b) => a - b);
     const sum = sorted.reduce((acc, v) => acc + v, 0);
     const mean = sum / count;
 
     return {
-      hour,
+      binIndex,
       timeLabel,
       p15: getPercentile(sorted, 0.15),
       p75: getPercentile(sorted, 0.75),
@@ -367,16 +373,16 @@ export function calculateHourlyGlucoseStats(
     };
   });
 
-  // Circular fill for missing hours
+  // Circular fill for missing bins
   const filledStats = rawStats.map((stat, idx) => {
     if (stat.mean !== -1) return stat;
 
     let foundLeft = -1;
     let foundRight = -1;
 
-    for (let step = 1; step <= 12; step++) {
-      const l = (idx - step + 24) % 24;
-      const r = (idx + step) % 24;
+    for (let step = 1; step <= 48; step++) {
+      const l = (idx - step + 96) % 96;
+      const r = (idx + step) % 96;
 
       if (rawStats[l].mean !== -1) {
         foundLeft = l;
@@ -391,7 +397,7 @@ export function calculateHourlyGlucoseStats(
     const sourceIdx = foundLeft !== -1 ? foundLeft : (foundRight !== -1 ? foundRight : -1);
     if (sourceIdx === -1) {
       return {
-        hour: stat.hour,
+        binIndex: stat.binIndex,
         timeLabel: stat.timeLabel,
         p15: 80,
         p75: 140,
@@ -400,7 +406,7 @@ export function calculateHourlyGlucoseStats(
     }
 
     return {
-      hour: stat.hour,
+      binIndex: stat.binIndex,
       timeLabel: stat.timeLabel,
       p15: rawStats[sourceIdx].p15,
       p75: rawStats[sourceIdx].p75,
@@ -419,7 +425,7 @@ export function calculateHourlyGlucoseStats(
     };
 
     return {
-      hour: stat.hour,
+      binIndex: stat.binIndex,
       timeLabel: stat.timeLabel,
       p15: convert(stat.p15),
       p75: convert(stat.p75),

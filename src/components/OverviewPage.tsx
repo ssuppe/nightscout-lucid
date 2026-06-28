@@ -15,7 +15,7 @@ import {
   calculateGlucoseMetrics, 
   calculateAGPPercentiles, 
   calculateHourlyTIR,
-  calculateHourlyGlucoseStats
+  calculate15MinGlucoseStats
 } from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
 import { AGPChart } from './AGPChart';
@@ -442,7 +442,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                 {/* Hourly Glucose Summary chart */}
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <HourlyGlucoseChart hourlyStats={calculateHourlyGlucoseStats(entries, units)} days={dateRangeDays} units={units} />
+                  <HourlyGlucoseChart hourlyStats={calculate15MinGlucoseStats(entries, units)} days={dateRangeDays} units={units} />
                 </div>
 
                 {/* Middle Section: Time in Range by Hour of Day chart */}

@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import * as echarts from 'echarts';
 import { GlucoseUnit } from '../utils/nightscout';
-import type { HourlyGlucoseStats } from '../utils/metrics';
+import type { Glucose15MinStats } from '../utils/metrics';
 
 interface HourlyGlucoseChartProps {
-  hourlyStats: HourlyGlucoseStats[];
+  hourlyStats: Glucose15MinStats[];
   days: number;
   units: GlucoseUnit;
 }
@@ -29,8 +29,6 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const timeLabels = hourlyStats.map(d => d.timeLabel);
     
     // Floating bar values (stacked bar):
-    // baseP15: invisible bar up to 15th percentile
-    // diffP75: grey bar showing the range between 15th and 75th percentiles
     const baseP15 = hourlyStats.map(d => d.p15);
     const diffP75 = hourlyStats.map(d => d.p75 - d.p15);
     const meanData = hourlyStats.map(d => d.mean);
@@ -51,7 +49,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const option: echarts.EChartsOption = {
       title: {
         text: 'Hourly Glucose Summary',
-        subtext: `This graph shows your data averaged over ${days} days, with the bar charts for each hour of the date range.`,
+        subtext: `This graph shows your data averaged over ${days} days, with the bar charts for each 15-minute interval of the date range.`,
         left: 'left',
         textStyle: {
           fontSize: 16,
@@ -120,7 +118,16 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
         axisLabel: {
           color: '#64748b',
           fontSize: 9,
-          interval: 2
+          // Show a label every 2 hours (8 intervals of 15 min)
+          interval: (index: number) => index % 8 === 0
+        },
+        splitLine: {
+          show: true,
+          interval: (index: number) => index % 8 === 0,
+          lineStyle: {
+            color: '#e2e8f0',
+            type: 'dashed'
+          }
         }
       },
       yAxis: {
@@ -175,7 +182,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
             ]
           }
         },
-        // 2. Base invisible stacking series (floating base)
+        // 2. Base invisible stacking series
         {
           name: 'p15_base',
           type: 'bar',
@@ -197,7 +204,10 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
           stack: 'HourlyGlucose',
           data: diffP75,
           color: '#cbd5e1', // soft grey
-          barWidth: '40%'
+          barWidth: '60%',
+          itemStyle: {
+            borderRadius: [2, 2, 2, 2]
+          }
         },
         // 4. Mean line overlay
         {
@@ -206,9 +216,9 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
           data: meanData,
           color: '#1d4ed8', // bold blue
           symbol: 'circle',
-          symbolSize: 6,
+          symbolSize: 4,
           lineStyle: {
-            width: 2
+            width: 1.5
           }
         }
       ]
