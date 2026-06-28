@@ -22,6 +22,7 @@ import { AGPChart } from './AGPChart';
 import { HourlyTIRChart } from './HourlyTIRChart';
 import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 import { DailyMiniChart } from './DailyMiniChart';
+import { WeeklyOverlayChart } from './WeeklyOverlayChart';
 
 interface OverviewPageProps {
   client: NightscoutClient;
@@ -34,7 +35,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   preferredUnits,
   onDisconnect
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'agp' | 'daily'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'overlay' | 'agp' | 'daily'>('overview');
   const [dateRangeDays, setDateRangeDays] = useState<number>(14);
   const [units, setUnits] = useState<GlucoseUnit>(preferredUnits);
   const [loading, setLoading] = useState<boolean>(true);
@@ -44,6 +45,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   const [treatments, setTreatments] = useState<NightscoutTreatment[]>([]);
   const [metrics, setMetrics] = useState<GlucoseMetrics | null>(null);
   const [dateRangeStr, setDateRangeStr] = useState<string>('');
+
+  // Overlay Filters States
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [eventFilter, setEventFilter] = useState<'all' | 'highs' | 'lows'>('all');
 
   const loadData = async (days: number) => {
     setLoading(true);
@@ -118,6 +123,48 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
     return arr;
   };
+
+  // Group date range into weekly slots (7-day intervals starting from today going back)
+  const getWeeksArray = () => {
+    const weeks = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < dateRangeDays; i += 7) {
+      const weekEnd = new Date(today);
+      weekEnd.setDate(today.getDate() - i);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const weekStart = new Date(weekEnd);
+      weekStart.setDate(weekEnd.getDate() - 6);
+      weekStart.setHours(0, 0, 0, 0);
+
+      weeks.push({ start: weekStart, end: weekEnd });
+    }
+    return weeks;
+  };
+
+  const handleDayToggle = (day: number) => {
+    if (selectedDays.includes(day)) {
+      setSelectedDays(selectedDays.filter(d => d !== day));
+    } else {
+      setSelectedDays([...selectedDays, day]);
+    }
+  };
+
+  const selectAllDays = () => setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
+  const selectWeekdays = () => setSelectedDays([1, 2, 3, 4, 5]);
+  const selectWeekends = () => setSelectedDays([0, 6]);
+
+  const weekdays = [
+    { label: 'Sun', value: 0 },
+    { label: 'Mon', value: 1 },
+    { label: 'Tue', value: 2 },
+    { label: 'Wed', value: 3 },
+    { label: 'Thu', value: 4 },
+    { label: 'Fri', value: 5 },
+    { label: 'Sat', value: 6 }
+  ];
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-slate-800 font-sans antialiased font-medium">
@@ -197,6 +244,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 }`}
               >
                 Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('overlay')}
+                className={`border-b-2 py-2 text-sm font-bold transition cursor-pointer ${
+                  activeTab === 'overlay' 
+                    ? 'border-[#72B100] text-[#72B100]' 
+                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                }`}
+              >
+                Overlay
               </button>
               <button
                 onClick={() => setActiveTab('agp')}
@@ -475,6 +532,124 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   <HourlyTIRChart hourlyData={calculateHourlyTIR(entries)} days={dateRangeDays} />
                 </div>
 
+              </div>
+            )}
+
+            {/* Weekly Overlay Tab */}
+            {activeTab === 'overlay' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left">
+                {/* Sidebar Filter Controls */}
+                <div className="lg:col-span-3 space-y-6">
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
+                    
+                    {/* Event Filter Section */}
+                    <div>
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2.5">Event Filtering</h4>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => setEventFilter('all')}
+                          className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
+                            eventFilter === 'all'
+                              ? 'bg-slate-100 text-slate-800 border-slate-300'
+                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          All Days
+                        </button>
+                        <button
+                          onClick={() => setEventFilter('highs')}
+                          className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
+                            eventFilter === 'highs'
+                              ? 'bg-amber-50 text-amber-700 border-amber-300'
+                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          Days with Highs (&gt; 180 / 10.0)
+                        </button>
+                        <button
+                          onClick={() => setEventFilter('lows')}
+                          className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
+                            eventFilter === 'lows'
+                              ? 'bg-red-50 text-red-700 border-red-300'
+                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          Days with Lows (&lt; 70 / 3.9)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Days of Week Filter */}
+                    <div className="border-t border-slate-100 pt-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Days of Week</h4>
+                      <div className="space-y-2">
+                        {weekdays.map((day) => (
+                          <label key={day.value} className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedDays.includes(day.value)}
+                              onChange={() => handleDayToggle(day.value)}
+                              className="h-4 w-4 rounded border-slate-300 text-[#72B100] focus:ring-[#72B100]/20 cursor-pointer"
+                            />
+                            <span>{day.label}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Quick Selectors */}
+                      <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                        <button
+                          onClick={selectAllDays}
+                          className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                        >
+                          All
+                        </button>
+                        <button
+                          onClick={selectWeekdays}
+                          className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                        >
+                          Weekdays
+                        </button>
+                        <button
+                          onClick={selectWeekends}
+                          className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                        >
+                          Weekends
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Weekly Charts List */}
+                <div className="lg:col-span-9 space-y-6">
+                  {getWeeksArray().map((week, idx) => {
+                    const weekEntries = entries.filter(
+                      e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
+                    );
+                    const weekLabel = `Week of ${week.start.toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric'
+                    })} - ${week.end.toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}`;
+
+                    return (
+                      <div key={idx} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <WeeklyOverlayChart
+                          entries={weekEntries}
+                          units={units}
+                          selectedDays={selectedDays}
+                          eventFilter={eventFilter}
+                          weekLabel={weekLabel}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
