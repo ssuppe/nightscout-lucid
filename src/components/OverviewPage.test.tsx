@@ -10,6 +10,9 @@ vi.mock('./AGPChart', () => ({
 vi.mock('./HourlyTIRChart', () => ({
   HourlyTIRChart: () => <div data-testid="mock-hourly-tir-chart" />,
 }));
+vi.mock('./HourlyGlucoseChart', () => ({
+  HourlyGlucoseChart: () => <div data-testid="mock-hourly-glucose-chart" />,
+}));
 
 // Mock NightscoutClient
 const mockClient = {
@@ -95,7 +98,7 @@ describe('OverviewPage', () => {
     expect(mockOnDisconnect).toHaveBeenCalled();
   });
 
-  it('renders Overview tab content by default (including hourly TIR chart)', async () => {
+  it('renders Overview tab content by default (including hourly glucose and TIR charts)', async () => {
     setupMockData(120);
     render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
 
@@ -103,6 +106,7 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
+    expect(screen.getByTestId('mock-hourly-glucose-chart')).toBeInTheDocument();
     expect(screen.getByTestId('mock-hourly-tir-chart')).toBeInTheDocument();
     expect(screen.queryByTestId('mock-agp-chart')).not.toBeInTheDocument();
   });

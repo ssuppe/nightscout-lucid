@@ -319,3 +319,111 @@ export function calculateHourlyTIR(entries: NightscoutEntry[]): HourlyTIR[] {
 
   return result;
 }
+
+export interface HourlyGlucoseStats {
+  hour: number;
+  timeLabel: string;
+  p15: number;
+  p75: number;
+  mean: number;
+}
+
+export function calculateHourlyGlucoseStats(
+  entries: NightscoutEntry[],
+  units: GlucoseUnit
+): HourlyGlucoseStats[] {
+  const validEntries = entries.filter((e) => e.sgv && Number.isFinite(e.sgv));
+
+  const rawStats = Array.from({ length: 24 }, (_, hour) => {
+    const hourEntries = validEntries.filter((e) => new Date(e.date).getHours() === hour);
+    const count = hourEntries.length;
+
+    let timeLabel = '';
+    if (hour === 0) timeLabel = '12 AM';
+    else if (hour < 12) timeLabel = `${hour} AM`;
+    else if (hour === 12) timeLabel = '12 PM';
+    else timeLabel = `${hour - 12} PM`;
+
+    if (count === 0) {
+      return {
+        hour,
+        timeLabel,
+        p15: -1,
+        p75: -1,
+        mean: -1,
+      };
+    }
+
+    const sorted = hourEntries.map((e) => e.sgv).sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, v) => acc + v, 0);
+    const mean = sum / count;
+
+    return {
+      hour,
+      timeLabel,
+      p15: getPercentile(sorted, 0.15),
+      p75: getPercentile(sorted, 0.75),
+      mean,
+    };
+  });
+
+  // Circular fill for missing hours
+  const filledStats = rawStats.map((stat, idx) => {
+    if (stat.mean !== -1) return stat;
+
+    let foundLeft = -1;
+    let foundRight = -1;
+
+    for (let step = 1; step <= 12; step++) {
+      const l = (idx - step + 24) % 24;
+      const r = (idx + step) % 24;
+
+      if (rawStats[l].mean !== -1) {
+        foundLeft = l;
+        break;
+      }
+      if (rawStats[r].mean !== -1) {
+        foundRight = r;
+        break;
+      }
+    }
+
+    const sourceIdx = foundLeft !== -1 ? foundLeft : (foundRight !== -1 ? foundRight : -1);
+    if (sourceIdx === -1) {
+      return {
+        hour: stat.hour,
+        timeLabel: stat.timeLabel,
+        p15: 80,
+        p75: 140,
+        mean: 110,
+      };
+    }
+
+    return {
+      hour: stat.hour,
+      timeLabel: stat.timeLabel,
+      p15: rawStats[sourceIdx].p15,
+      p75: rawStats[sourceIdx].p75,
+      mean: rawStats[sourceIdx].mean,
+    };
+  });
+
+  // Convert to unit format
+  return filledStats.map((stat) => {
+    const convert = (val: number) => {
+      if (units === GlucoseUnit.MMOL) {
+        return roundTo(val / CONVERSION_FACTOR, 1);
+      } else {
+        return roundTo(val, 0);
+      }
+    };
+
+    return {
+      hour: stat.hour,
+      timeLabel: stat.timeLabel,
+      p15: convert(stat.p15),
+      p75: convert(stat.p75),
+      mean: convert(stat.mean),
+    };
+  });
+}

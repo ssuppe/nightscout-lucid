@@ -14,11 +14,13 @@ import type { NightscoutEntry } from '../utils/nightscout';
 import { 
   calculateGlucoseMetrics, 
   calculateAGPPercentiles, 
-  calculateHourlyTIR 
+  calculateHourlyTIR,
+  calculateHourlyGlucoseStats
 } from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
 import { AGPChart } from './AGPChart';
 import { HourlyTIRChart } from './HourlyTIRChart';
+import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 
 interface OverviewPageProps {
   client: NightscoutClient;
@@ -436,6 +438,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
 
                   </div>
+                </div>
+
+                {/* Hourly Glucose Summary chart */}
+                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <HourlyGlucoseChart hourlyStats={calculateHourlyGlucoseStats(entries, units)} days={dateRangeDays} units={units} />
                 </div>
 
                 {/* Middle Section: Time in Range by Hour of Day chart */}
