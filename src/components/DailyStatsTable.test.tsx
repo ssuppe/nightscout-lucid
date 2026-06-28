@@ -56,5 +56,14 @@ describe('DailyStatsTable Component', () => {
     expect(screen.getAllByText('135')).toHaveLength(1); // Q1
     expect(screen.getAllByText('165')).toHaveLength(1); // Q3
     expect(screen.getAllByText('30')).toHaveLength(2);  // IQR and Std Dev
+
+    // Verify dark row divider borders exist
+    const veryLowCell = screen.getByText('% Very Low');
+    const veryLowRow = veryLowCell.closest('tr');
+    expect(veryLowRow).toHaveClass('border-b-2');
+
+    const stdDevCell = screen.getByText('Std. Dev.');
+    const stdDevRow = stdDevCell.closest('tr');
+    expect(stdDevRow).toHaveClass('border-b-2');
   });
 });

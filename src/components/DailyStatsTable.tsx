@@ -288,7 +288,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
           </tr>
 
           {/* % Very Low */}
-          <tr>
+          <tr className="border-b-2 border-slate-400/80">
             <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#9C0006] shrink-0" />
               <span>% Very Low</span>
@@ -341,7 +341,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
           </tr>
 
           {/* Std. Dev. */}
-          <tr>
+          <tr className="border-b-2 border-slate-400/80">
             <td className="py-2.5 text-slate-400 font-bold">Std. Dev.</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
