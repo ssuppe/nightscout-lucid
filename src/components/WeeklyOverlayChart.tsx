@@ -176,13 +176,7 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
       });
     });
 
-    // Dynamic smart Y-axis limits
-    const minVal = allSgvs.length > 0 ? Math.min(...allSgvs) : targetMin;
-    const maxVal = allSgvs.length > 0 ? Math.max(...allSgvs) : targetMax;
-    const cushionMin = isMgdl ? 15 : 0.8;
-    const cushionMax = isMgdl ? 25 : 1.5;
-    const yMin = Math.max(isMgdl ? 40 : 2.0, Math.min(targetMin - cushionMin, minVal - cushionMin));
-    const yMax = Math.max(targetMax + cushionMax, maxVal + cushionMax);
+
 
     // Target range area config
     const targetAreaSeries: echarts.SeriesOption = {
@@ -294,8 +288,16 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
       },
       yAxis: {
         type: 'value',
-        min: yMin,
-        max: yMax,
+        min: (value) => {
+          const minVal = Math.min(value.min, targetMin);
+          const cushion = isMgdl ? 15 : 0.8;
+          return Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushion));
+        },
+        max: (value) => {
+          const maxVal = Math.max(value.max, targetMax);
+          const cushion = isMgdl ? 25 : 1.5;
+          return Math.ceil(maxVal + cushion);
+        },
         axisLabel: {
           color: '#64748b',
           fontSize: 9

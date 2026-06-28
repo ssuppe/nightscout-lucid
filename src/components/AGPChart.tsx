@@ -40,17 +40,7 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
 
     const medianP50 = percentiles.map(b => b.p50);
 
-    // Calculate dynamic smart y-axis scale based on data
-    const p10Min = percentiles.length > 0 ? Math.min(...percentiles.map(b => b.p10)) : targetMin;
-    const p90Max = percentiles.length > 0 ? Math.max(...percentiles.map(b => b.p90)) : targetMax;
-    
-    // Always include target bounds, and add a cushion
-    const yMinLimit = isMgdl ? 40 : 2.0;
-    const cushionMin = isMgdl ? 15 : 0.8;
-    const cushionMax = isMgdl ? 25 : 1.5;
-    
-    const yMin = Math.max(yMinLimit, Math.min(targetMin - cushionMin, p10Min - cushionMin));
-    const yMax = Math.max(targetMax + cushionMax, p90Max + cushionMax);
+
 
     const option: echarts.EChartsOption = {
       title: {
@@ -128,8 +118,16 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
       },
       yAxis: {
         type: 'value',
-        min: yMin,
-        max: yMax,
+        min: (value) => {
+          const minVal = Math.min(value.min, targetMin);
+          const cushion = isMgdl ? 15 : 0.8;
+          return Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushion));
+        },
+        max: (value) => {
+          const maxVal = Math.max(value.max, targetMax);
+          const cushion = isMgdl ? 25 : 1.5;
+          return Math.ceil(maxVal + cushion);
+        },
         axisLabel: {
           color: '#64748b',
           fontSize: 9

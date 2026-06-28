@@ -35,14 +35,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const targetMin = isMgdl ? 70 : 3.9;
     const targetMax = isMgdl ? 180 : 10.0;
 
-    // Smart Y-axis limits based on data range
-    const allVals = hourlyStats.flatMap(d => [d.p15, d.p75, d.mean]);
-    const minVal = Math.min(...allVals, targetMin);
-    const maxVal = Math.max(...allVals, targetMax);
-    const cushionMin = isMgdl ? 15 : 0.8;
-    const cushionMax = isMgdl ? 25 : 1.5;
-    const yMin = Math.max(isMgdl ? 40 : 2.0, minVal - cushionMin);
-    const yMax = maxVal + cushionMax;
+
 
     const option: echarts.EChartsOption = {
       // Title and Legend are rendered in parent component via HTML
@@ -112,8 +105,16 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
       },
       yAxis: {
         type: 'value',
-        min: yMin,
-        max: yMax,
+        min: (value) => {
+          const minVal = Math.min(value.min, targetMin);
+          const cushion = isMgdl ? 15 : 0.8;
+          return Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushion));
+        },
+        max: (value) => {
+          const maxVal = Math.max(value.max, targetMax);
+          const cushion = isMgdl ? 25 : 1.5;
+          return Math.ceil(maxVal + cushion);
+        },
         axisLabel: {
           color: '#64748b',
           fontSize: 10,
