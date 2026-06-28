@@ -1,0 +1,10 @@
+node_modules
+dist
+deploy-artifacts
+.git
+.gitignore
+.env
+coverage
+README.md
+IMPLEMENTATION_PLAN.md
+ANTIGRAVITY.md
