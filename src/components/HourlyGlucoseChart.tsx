@@ -35,7 +35,15 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const targetMin = isMgdl ? 70 : 3.9;
     const targetMax = isMgdl ? 180 : 10.0;
 
+    const allVals = hourlyStats.flatMap(d => [d.p15, d.p75, d.mean]);
+    const maxVal = allVals.length > 0 ? Math.max(...allVals, targetMax) : targetMax;
+    const minVal = allVals.length > 0 ? Math.min(...allVals, targetMin) : targetMin;
 
+    const cushionMin = isMgdl ? 15 : 0.8;
+    const cushionMax = isMgdl ? 25 : 1.5;
+
+    const yMin = Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushionMin));
+    const yMax = Math.ceil(maxVal + cushionMax);
 
     const option: echarts.EChartsOption = {
       // Title and Legend are rendered in parent component via HTML
@@ -51,22 +59,26 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
         },
         formatter: (params: any) => {
           const time = params[0].axisValue;
-          const dataIndex = params[0].dataIndex;
-          const d = hourlyStats[dataIndex];
+          const stat = hourlyStats.find(s => s.timeLabel === time);
+          if (!stat) return '';
+
+          const precision = isMgdl ? 0 : 1;
+          const unitStr = units;
+
+          const p15Val = stat.p15.toFixed(precision);
+          const p75Val = stat.p75.toFixed(precision);
+          const meanVal = stat.mean.toFixed(precision);
+
           return `
-            <div style="font-family: Inter, sans-serif; font-size: 11px; padding: 6px; line-height: 1.4;">
-              <div style="font-weight: 800; margin-bottom: 4px; color: #1e293b;">Time Slot: ${time}</div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #64748b;">75th Percentile:</span>
-                <span style="font-weight: 700; color: #334155;">${d.p75.toFixed(1)} ${units}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #2563eb; font-weight: 700;">Average (Mean):</span>
-                <span style="font-weight: 800; color: #1d4ed8;">${d.mean.toFixed(1)} ${units}</span>
-              </div>
+            <div style="font-family: sans-serif; font-size: 11px; padding: 4px; line-height: 1.6; text-align: left;">
+              <div style="font-weight: 800; color: #1e293b; border-b: 1px solid #e2e8f0; padding-bottom: 3px; mb-4">${time}</div>
               <div style="display: flex; justify-content: space-between; gap: 16px;">
-                <span style="color: #64748b;">15th Percentile:</span>
-                <span style="font-weight: 700; color: #334155;">${d.p15.toFixed(1)} ${units}</span>
+                <span style="color: #64748b; font-weight: 600;">Average Glucose:</span>
+                <span style="font-weight: 800; color: #1d4ed8;">${meanVal} ${unitStr}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; gap: 16px; margin-top: 2px;">
+                <span style="color: #64748b; font-weight: 600;">15th - 75th Range:</span>
+                <span style="font-weight: 800; color: #475569;">${p15Val} - ${p75Val} ${unitStr}</span>
               </div>
             </div>
           `;
@@ -75,46 +87,32 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
       grid: {
         left: '4%',
         right: '4%',
-        bottom: '8%',
         top: '6%',
+        bottom: '8%',
         containLabel: true
       },
       xAxis: {
         type: 'category',
         data: timeLabels,
-        axisLine: {
-          lineStyle: {
-            color: '#cbd5e1'
-          }
-        },
         axisLabel: {
           color: '#64748b',
-          fontSize: 10,
-          fontWeight: 'bold',
-          // Show label every 3 hours (12 intervals of 15 min)
-          interval: (index: number) => index % 12 === 0
+          fontSize: 9,
+          interval: 8,
+          formatter: (value: string) => value
         },
         splitLine: {
           show: true,
-          interval: (index: number) => index % 12 === 0,
+          interval: 8,
           lineStyle: {
-            color: '#e2e8f0',
+            color: '#f1f5f9',
             type: 'dashed'
           }
         }
       },
       yAxis: {
         type: 'value',
-        min: (value) => {
-          const minVal = Math.min(value.min, targetMin);
-          const cushion = isMgdl ? 15 : 0.8;
-          return Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushion));
-        },
-        max: (value) => {
-          const maxVal = Math.max(value.max, targetMax);
-          const cushion = isMgdl ? 25 : 1.5;
-          return Math.ceil(maxVal + cushion);
-        },
+        min: yMin,
+        max: yMax,
         axisLabel: {
           color: '#64748b',
           fontSize: 10,
