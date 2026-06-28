@@ -1,0 +1,124 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { ConnectionPage } from './ConnectionPage';
+import { GlucoseUnit } from '../utils/nightscout';
+
+// Mock the NightscoutClient class
+vi.mock('../utils/nightscout', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/nightscout')>();
+  return {
+    ...actual,
+    NightscoutClient: vi.fn().mockImplementation((url, token) => {
+      return {
+        getBaseUrl: () => url.replace(/\/$/, ''),
+        getAuthHeaders: vi.fn(),
+        fetchProfile: vi.fn().mockImplementation(async () => {
+          if (token === 'invalid-token') {
+            throw new Error('Nightscout authentication failed');
+          }
+          if (url.includes('cors-fail')) {
+            throw new Error('Network error: CORS settings blocked the request');
+          }
+          return [{ defaultProfile: 'Default' }];
+        }),
+        fetchEntries: vi.fn().mockResolvedValue([]),
+        fetchTreatments: vi.fn().mockResolvedValue([]),
+      };
+    }),
+  };
+});
+
+describe('ConnectionPage', () => {
+  const mockOnConnect = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders connection form elements', () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+
+    expect(screen.getByLabelText(/Nightscout URL/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/API Token/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Preferred Units/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Connect/i })).toBeInTheDocument();
+  });
+
+  it('shows error if URL format is invalid', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+
+    const urlInput = screen.getByLabelText(/Nightscout URL/i);
+    fireEvent.change(urlInput, {
+      target: { value: 'not-a-valid-url' },
+    });
+    
+    const form = urlInput.closest('form')!;
+    fireEvent.submit(form);
+
+    expect(await screen.findByText(/Please enter a valid URL/i)).toBeInTheDocument();
+    expect(mockOnConnect).not.toHaveBeenCalled();
+  });
+
+  it('connects successfully with valid credentials and triggers onConnect', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+
+    const urlInput = screen.getByLabelText(/Nightscout URL/i);
+    fireEvent.change(urlInput, {
+      target: { value: 'https://my-nightscout.herokuapp.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/API Token/i), {
+      target: { value: 'valid-secret' },
+    });
+    fireEvent.change(screen.getByLabelText(/Preferred Units/i), {
+      target: { value: GlucoseUnit.MMOL },
+    });
+
+    const form = urlInput.closest('form')!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(mockOnConnect).toHaveBeenCalledWith(
+        expect.any(Object),
+        'https://my-nightscout.herokuapp.com',
+        'valid-secret',
+        GlucoseUnit.MMOL
+      );
+    });
+  });
+
+  it('shows auth error message when credentials verification fails', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+
+    const urlInput = screen.getByLabelText(/Nightscout URL/i);
+    fireEvent.change(urlInput, {
+      target: { value: 'https://my-nightscout.herokuapp.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/API Token/i), {
+      target: { value: 'invalid-token' },
+    });
+
+    const form = urlInput.closest('form')!;
+    fireEvent.submit(form);
+
+    expect(await screen.findByText(/Nightscout authentication failed/i)).toBeInTheDocument();
+    expect(mockOnConnect).not.toHaveBeenCalled();
+  });
+
+  it('shows CORS error message when network request fails', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+
+    const urlInput = screen.getByLabelText(/Nightscout URL/i);
+    fireEvent.change(urlInput, {
+      target: { value: 'https://cors-fail.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/API Token/i), {
+      target: { value: 'valid-token' },
+    });
+
+    const form = urlInput.closest('form')!;
+    fireEvent.submit(form);
+
+    expect(await screen.findByText(/CORS settings/i)).toBeInTheDocument();
+    expect(mockOnConnect).not.toHaveBeenCalled();
+  });
+});
