@@ -19,6 +19,9 @@ vi.mock('./DailyMiniChart', () => ({
 vi.mock('./WeeklyOverlayChart', () => ({
   WeeklyOverlayChart: () => <div data-testid="mock-weekly-overlay-chart" />,
 }));
+vi.mock('./DailyStatsTable', () => ({
+  DailyStatsTable: () => <div data-testid="mock-daily-stats-table" />,
+}));
 
 // Mock NightscoutClient
 const mockClient = {
@@ -162,5 +165,20 @@ describe('OverviewPage', () => {
     expect(screen.getByText('Event Filtering')).toBeInTheDocument();
     expect(screen.getByText('Days of Week')).toBeInTheDocument();
     expect(screen.getAllByTestId('mock-weekly-overlay-chart').length).toBeGreaterThan(0);
+  });
+
+  it('renders Statistics tab contents with daily stats table when clicked', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const statsTabBtn = screen.getByRole('button', { name: 'Statistics' });
+    fireEvent.click(statsTabBtn);
+
+    expect(screen.getByText('Daily Statistics Table')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-daily-stats-table')).toBeInTheDocument();
   });
 });

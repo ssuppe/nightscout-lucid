@@ -23,6 +23,7 @@ import { HourlyTIRChart } from './HourlyTIRChart';
 import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 import { DailyMiniChart } from './DailyMiniChart';
 import { WeeklyOverlayChart } from './WeeklyOverlayChart';
+import { DailyStatsTable } from './DailyStatsTable';
 
 interface OverviewPageProps {
   client: NightscoutClient;
@@ -35,7 +36,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   preferredUnits,
   onDisconnect
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'overlay' | 'agp' | 'daily'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'overlay' | 'agp' | 'daily' | 'stats'>('overview');
   const [dateRangeDays, setDateRangeDays] = useState<number>(14);
   const [units, setUnits] = useState<GlucoseUnit>(preferredUnits);
   const [loading, setLoading] = useState<boolean>(true);
@@ -274,6 +275,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 }`}
               >
                 Daily Logs
+              </button>
+              <button
+                onClick={() => setActiveTab('stats')}
+                className={`border-b-2 py-2 text-sm font-bold transition cursor-pointer ${
+                  activeTab === 'stats' 
+                    ? 'border-[#72B100] text-[#72B100]' 
+                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                }`}
+              >
+                Statistics
               </button>
             </nav>
 
@@ -865,6 +876,22 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Statistics Tab */}
+            {activeTab === 'stats' && (
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
+                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900">Daily Statistics Table</h2>
+                  <span className="text-xs text-slate-400 font-bold">Showing {dateRangeDays} days</span>
+                </div>
+                <DailyStatsTable
+                  days={getDaysArray()}
+                  entries={entries}
+                  treatments={treatments}
+                  units={units}
+                />
               </div>
             )}
 
