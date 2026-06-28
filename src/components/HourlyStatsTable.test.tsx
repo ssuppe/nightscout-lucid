@@ -9,7 +9,7 @@ describe('HourlyStatsTable Component', () => {
     { _id: 'e2', date: new Date().setHours(1, 45), sgv: 185, type: 'sgv' }
   ];
 
-  it('renders table headers and matching 24 hour rows', () => {
+  it('renders table headers, 24 hour rows, and correct vertical dividers', () => {
     render(
       <HourlyStatsTable
         entries={mockEntries}
@@ -18,14 +18,19 @@ describe('HourlyStatsTable Component', () => {
     );
 
     // Headers
-    expect(screen.getByText('Hour Range')).toBeInTheDocument();
-    expect(screen.getByText('% In Range')).toBeInTheDocument();
-    expect(screen.getByText('% Very High')).toBeInTheDocument();
-    expect(screen.getByText('% High')).toBeInTheDocument();
-    expect(screen.getByText('% Low')).toBeInTheDocument();
-    expect(screen.getByText('% Very Low')).toBeInTheDocument();
+    const hourRangeHeader = screen.getByText('Hour Range');
+    expect(hourRangeHeader).toBeInTheDocument();
+    expect(hourRangeHeader).toHaveClass('border-r');
+
+    const sdHeader = screen.getByText('SD (CV)');
+    expect(sdHeader).toHaveClass('border-r');
+
+    const veryLowHeader = screen.getByText('% Very Low');
+    expect(veryLowHeader).toHaveClass('border-r');
 
     // Data Row (1-2 hour range)
-    expect(screen.getByText('01:00 - 02:00 (1-2)')).toBeInTheDocument();
+    const rowLabelCell = screen.getByText('01:00 - 02:00 (1-2)');
+    expect(rowLabelCell).toBeInTheDocument();
+    expect(rowLabelCell).toHaveClass('border-r');
   });
 });
