@@ -66,6 +66,15 @@ describe('DailyStatsTable Component', () => {
     const stdDevRow = stdDevCell.closest('tr');
     expect(stdDevRow).toHaveClass('border-b-2');
 
+    // Verify border-b on Max and IQR
+    const maxCell = screen.getByText('Max');
+    const maxRow = maxCell.closest('tr');
+    expect(maxRow).toHaveClass('border-b');
+
+    const iqrCell = screen.getByText('IQR');
+    const iqrRow = iqrCell.closest('tr');
+    expect(iqrRow).toHaveClass('border-b');
+
     // Verify vertical column dividers exist on Metric labels
     const metricHeader = screen.getByText('Metric');
     expect(metricHeader).toHaveClass('border-r');
