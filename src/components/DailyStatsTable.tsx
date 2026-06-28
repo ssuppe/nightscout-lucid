@@ -20,18 +20,20 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[800px] border-collapse text-left text-xs font-semibold text-slate-700">
+      <table className="w-full min-w-[950px] border-collapse text-left text-xs font-semibold text-slate-700">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-            <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3 text-right">Avg Glucose</th>
-            <th className="px-4 py-3 text-right">SD (CV)</th>
-            <th className="px-4 py-3 text-right text-[#72B100]">In Range (%)</th>
-            <th className="px-4 py-3 text-right text-amber-600">High (%)</th>
-            <th className="px-4 py-3 text-right text-red-600">Low (%)</th>
-            <th className="px-4 py-3 text-right">Carbs</th>
-            <th className="px-4 py-3 text-right">Insulin</th>
-            <th className="px-4 py-3 text-right">Readings (Wear %)</th>
+            <th className="px-3 py-3">Date</th>
+            <th className="px-3 py-3 text-right">Avg Glucose</th>
+            <th className="px-3 py-3 text-right">SD (CV)</th>
+            <th className="px-3 py-3 text-right text-[#F29100]">% Very High</th>
+            <th className="px-3 py-3 text-right text-[#FCD116]">% High</th>
+            <th className="px-3 py-3 text-right text-[#72B100]">% In Range</th>
+            <th className="px-3 py-3 text-right text-[#F04124]">% Low</th>
+            <th className="px-3 py-3 text-right text-[#9C0006]">% Very Low</th>
+            <th className="px-3 py-3 text-right">Carbs</th>
+            <th className="px-3 py-3 text-right">Insulin</th>
+            <th className="px-3 py-3 text-right">Readings (Wear %)</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -50,9 +52,11 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
             // Calculate metrics for this day
             let meanStr = '-';
             let sdCvStr = '-';
-            let inRangePct = 0;
+            let veryHighPct = 0;
             let highPct = 0;
+            let inRangePct = 0;
             let lowPct = 0;
+            let veryLowPct = 0;
             let hasGlucose = dayEntries.length > 0;
 
             if (hasGlucose) {
@@ -69,13 +73,17 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
               sdCvStr = `±${conversion(sdVal).toFixed(isMgdl ? 0 : 1)} (${cvVal.toFixed(0)}%)`;
 
               // TIR splits
-              const inRange = dayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
-              const high = dayEntries.filter(e => e.sgv > 180).length;
-              const low = dayEntries.filter(e => e.sgv < 70).length;
+              const veryHighCount = dayEntries.filter(e => e.sgv > 250).length;
+              const highCount = dayEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length;
+              const inRangeCount = dayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
+              const lowCount = dayEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length;
+              const veryLowCount = dayEntries.filter(e => e.sgv < 54).length;
 
-              inRangePct = Math.round((inRange / dayEntries.length) * 100);
-              highPct = Math.round((high / dayEntries.length) * 100);
-              lowPct = Math.round((low / dayEntries.length) * 100);
+              veryHighPct = Math.round((veryHighCount / dayEntries.length) * 100);
+              highPct = Math.round((highCount / dayEntries.length) * 100);
+              inRangePct = Math.round((inRangeCount / dayEntries.length) * 100);
+              lowPct = Math.round((lowCount / dayEntries.length) * 100);
+              veryLowPct = Math.round((veryLowCount / dayEntries.length) * 100);
             }
 
             const dayCarbs = dayTreatments.reduce((acc, t) => acc + (t.carbs || 0), 0);
@@ -90,25 +98,31 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
             return (
               <tr key={idx} className="hover:bg-slate-50/50 transition">
-                <td className="px-4 py-3 font-bold text-slate-900">{formattedDate}</td>
-                <td className="px-4 py-3 text-right font-bold text-slate-800">{meanStr}</td>
-                <td className="px-4 py-3 text-right text-slate-500">{sdCvStr}</td>
-                <td className="px-4 py-3 text-right text-[#72B100] font-extrabold">
-                  {hasGlucose ? `${inRangePct}%` : '-'}
+                <td className="px-3 py-3 font-bold text-slate-900">{formattedDate}</td>
+                <td className="px-3 py-3 text-right font-bold text-slate-800">{meanStr}</td>
+                <td className="px-3 py-3 text-right text-slate-500">{sdCvStr}</td>
+                <td className="px-3 py-3 text-right text-[#F29100] font-bold">
+                  {hasGlucose ? `${veryHighPct}%` : '-'}
                 </td>
-                <td className="px-4 py-3 text-right text-amber-600 font-bold">
+                <td className="px-3 py-3 text-right text-[#FCD116] font-bold">
                   {hasGlucose ? `${highPct}%` : '-'}
                 </td>
-                <td className="px-4 py-3 text-right text-red-600 font-bold">
+                <td className="px-3 py-3 text-right text-[#72B100] font-extrabold">
+                  {hasGlucose ? `${inRangePct}%` : '-'}
+                </td>
+                <td className="px-3 py-3 text-right text-[#F04124] font-bold">
                   {hasGlucose ? `${lowPct}%` : '-'}
                 </td>
-                <td className="px-4 py-3 text-right text-emerald-600 font-bold">
+                <td className="px-3 py-3 text-right text-[#9C0006] font-bold">
+                  {hasGlucose ? `${veryLowPct}%` : '-'}
+                </td>
+                <td className="px-3 py-3 text-right text-emerald-600 font-bold">
                   {dayCarbs > 0 ? `${dayCarbs}g` : '-'}
                 </td>
-                <td className="px-4 py-3 text-right text-blue-600 font-bold">
+                <td className="px-3 py-3 text-right text-blue-600 font-bold">
                   {dayInsulin > 0 ? `${dayInsulin.toFixed(1)} U` : '-'}
                 </td>
-                <td className="px-4 py-3 text-right text-slate-500">
+                <td className="px-3 py-3 text-right text-slate-500">
                   {dayEntries.length} <span className="text-[10px] text-slate-400">({wearPct}%)</span>
                 </td>
               </tr>

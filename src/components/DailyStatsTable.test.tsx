@@ -25,7 +25,11 @@ describe('DailyStatsTable Component', () => {
 
     // Headers
     expect(screen.getByText('Avg Glucose')).toBeInTheDocument();
-    expect(screen.getByText('In Range (%)')).toBeInTheDocument();
+    expect(screen.getByText('% In Range')).toBeInTheDocument();
+    expect(screen.getByText('% Very High')).toBeInTheDocument();
+    expect(screen.getByText('% High')).toBeInTheDocument();
+    expect(screen.getByText('% Low')).toBeInTheDocument();
+    expect(screen.getByText('% Very Low')).toBeInTheDocument();
     expect(screen.getByText('Carbs')).toBeInTheDocument();
     expect(screen.getByText('Insulin')).toBeInTheDocument();
 
