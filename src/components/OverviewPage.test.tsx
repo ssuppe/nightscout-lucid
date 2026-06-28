@@ -3,9 +3,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { OverviewPage } from './OverviewPage';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 
-// Mock AGPChart to avoid canvas rendering dependencies during page-level tests
+// Mock child chart components to avoid canvas rendering dependencies during page-level tests
 vi.mock('./AGPChart', () => ({
   AGPChart: () => <div data-testid="mock-agp-chart" />,
+}));
+vi.mock('./HourlyTIRChart', () => ({
+  HourlyTIRChart: () => <div data-testid="mock-hourly-tir-chart" />,
 }));
 
 // Mock NightscoutClient
@@ -92,7 +95,7 @@ describe('OverviewPage', () => {
     expect(mockOnDisconnect).toHaveBeenCalled();
   });
 
-  it('displays the AGP Profile tab contents and placeholder patterns card when clicked', async () => {
+  it('displays all child charts and the patterns card directly on the main Overview page', async () => {
     setupMockData(120);
     render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
 
@@ -100,10 +103,8 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
-    const agpTabBtn = screen.getByRole('button', { name: 'AGP Profile' });
-    fireEvent.click(agpTabBtn);
-
-    // Verify AGP specific elements are displayed
+    // Verify all parts of the overview page are rendered on a single page
+    expect(screen.getByTestId('mock-hourly-tir-chart')).toBeInTheDocument();
     expect(screen.getByTestId('mock-agp-chart')).toBeInTheDocument();
     expect(screen.getByText('Patterns')).toBeInTheDocument();
     expect(screen.getByText('Patterns not implemented yet')).toBeInTheDocument();

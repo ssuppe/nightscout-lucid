@@ -241,3 +241,81 @@ export function calculateAGPPercentiles(
     };
   });
 }
+
+export interface HourlyTIR {
+  hour: number;
+  timeLabel: string;
+  veryLow: number;
+  low: number;
+  target: number;
+  high: number;
+  veryHigh: number;
+}
+
+export function calculateHourlyTIR(entries: NightscoutEntry[]): HourlyTIR[] {
+  const result: HourlyTIR[] = [];
+  const validEntries = entries.filter((e) => e.sgv && Number.isFinite(e.sgv));
+
+  for (let hour = 0; hour < 24; hour++) {
+    const hourEntries = validEntries.filter((e) => new Date(e.date).getHours() === hour);
+    const count = hourEntries.length;
+
+    // Time label format (e.g. "12 AM", "1 AM", ..., "12 PM", "1 PM", ...)
+    let timeLabel = '';
+    if (hour === 0) timeLabel = '12 AM';
+    else if (hour < 12) timeLabel = `${hour} AM`;
+    else if (hour === 12) timeLabel = '12 PM';
+    else timeLabel = `${hour - 12} PM`;
+
+    if (count === 0) {
+      result.push({
+        hour,
+        timeLabel,
+        veryLow: 0,
+        low: 0,
+        target: 100, // Default to 100% target if no data
+        high: 0,
+        veryHigh: 0,
+      });
+      continue;
+    }
+
+    let veryLowCount = 0;
+    let lowCount = 0;
+    let targetCount = 0;
+    let highCount = 0;
+    let veryHighCount = 0;
+
+    hourEntries.forEach((e) => {
+      if (e.sgv < 54) {
+        veryLowCount++;
+      } else if (e.sgv >= 54 && e.sgv <= 69) {
+        lowCount++;
+      } else if (e.sgv >= 70 && e.sgv <= 180) {
+        targetCount++;
+      } else if (e.sgv >= 181 && e.sgv <= 250) {
+        highCount++;
+      } else {
+        veryHighCount++;
+      }
+    });
+
+    const veryLow = roundTo((veryLowCount / count) * 100, 0);
+    const low = roundTo((lowCount / count) * 100, 0);
+    const target = roundTo((targetCount / count) * 100, 0);
+    const high = roundTo((highCount / count) * 100, 0);
+    const veryHigh = roundTo((veryHighCount / count) * 100, 0);
+
+    result.push({
+      hour,
+      timeLabel,
+      veryLow,
+      low,
+      target,
+      high,
+      veryHigh,
+    });
+  }
+
+  return result;
+}

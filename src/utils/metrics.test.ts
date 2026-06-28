@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGlucoseMetrics, calculateAGPPercentiles } from './metrics';
+import { calculateGlucoseMetrics, calculateAGPPercentiles, calculateHourlyTIR } from './metrics';
 import { GlucoseUnit } from './nightscout';
 import type { NightscoutEntry } from './nightscout';
 
@@ -129,6 +129,38 @@ describe('Glucose Metrics Calculations', () => {
       expect(percentiles[0].p50).toBe(120);
       expect(percentiles[50].p50).toBe(120);
       expect(percentiles[24].p50).toBe(120);
+    });
+  });
+
+  describe('Hourly TIR Calculations', () => {
+    it('calculates hourly TIR distribution correctly', () => {
+      const date = new Date();
+      date.setHours(10);
+      date.setMinutes(30);
+
+      const values = [50, 60, 100, 200];
+      const entries = values.map((val, idx) => ({
+        _id: `id-${idx}`,
+        date: date.getTime(),
+        sgv: val,
+        direction: 'Flat',
+        type: 'sgv',
+      }));
+
+      const hourlyData = calculateHourlyTIR(entries);
+      expect(hourlyData.length).toBe(24);
+
+      const hour10 = hourlyData[10];
+      expect(hour10.timeLabel).toBe('10 AM');
+      expect(hour10.veryLow).toBe(25); // 1/4
+      expect(hour10.low).toBe(25);      // 1/4
+      expect(hour10.target).toBe(25);   // 1/4
+      expect(hour10.high).toBe(25);     // 1/4
+      expect(hour10.veryHigh).toBe(0);
+
+      // Empty hours default to 100% target
+      expect(hourlyData[0].target).toBe(100);
+      expect(hourlyData[0].veryLow).toBe(0);
     });
   });
 });

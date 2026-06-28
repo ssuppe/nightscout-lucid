@@ -11,9 +11,15 @@ import {
 } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 import type { NightscoutEntry } from '../utils/nightscout';
-import { calculateGlucoseMetrics, calculateAGPPercentiles } from '../utils/metrics';
+import { 
+  calculateGlucoseMetrics, 
+  calculateAGPPercentiles, 
+  calculateHourlyTIR 
+} from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
 import { AGPChart } from './AGPChart';
+import { HourlyTIRChart } from './HourlyTIRChart';
+
 interface OverviewPageProps {
   client: NightscoutClient;
   preferredUnits: GlucoseUnit;
@@ -25,7 +31,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   preferredUnits,
   onDisconnect
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'agp' | 'daily'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'daily'>('overview');
   const [dateRangeDays, setDateRangeDays] = useState<number>(14);
   const [units, setUnits] = useState<GlucoseUnit>(preferredUnits);
   const [loading, setLoading] = useState<boolean>(true);
@@ -43,7 +49,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     const from = new Date();
     from.setDate(to.getDate() - days);
 
-    // Format dates range string: e.g. "Jun 14, 2026 - Jun 28, 2026"
     const formatDate = (d: Date) => d.toLocaleDateString(undefined, { 
       month: 'short', 
       day: 'numeric', 
@@ -85,11 +90,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     ? Math.round(entries.length / Math.max(activeSensorDays, 1)) 
     : 0;
   
-  // Dexcom Clarity target is 288 readings per day (every 5 mins). Calculate active wear percentage:
   const wearPercentage = Math.min(100, Math.round((avgReadingsPerDay / 288) * 100));
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-slate-800 font-sans antialiased">
+    <div className="min-h-screen bg-[#F8F9FA] text-slate-800 font-sans antialiased font-medium">
       
       {/* Top Accent Strip - Clarity Green */}
       <div className="h-1.5 w-full bg-[#72B100]" />
@@ -113,7 +117,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
           </div>
 
-          {/* Action Menu (Disconnect, Unit toggle) */}
+          {/* Action Menu */}
           <div className="flex items-center gap-3">
             {/* Preferred Unit Toggle */}
             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
@@ -166,16 +170,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 }`}
               >
                 Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('agp')}
-                className={`border-b-2 py-2 text-sm font-bold transition cursor-pointer ${
-                  activeTab === 'agp' 
-                    ? 'border-[#72B100] text-[#72B100]' 
-                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
-                }`}
-              >
-                AGP Profile
               </button>
               <button
                 onClick={() => setActiveTab('daily')}
@@ -258,188 +252,193 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
             {/* Dashboard Content */}
             {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                
-                {/* 1. Stacked Time in Range Card (6 cols) */}
-                <div className="lg:col-span-7 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <div className="mb-6 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold tracking-tight text-slate-900">Time in Range</h2>
-                      <p className="text-xs text-slate-400 font-medium">Target: {units === GlucoseUnit.MGDL ? '70-180 mg/dL' : '3.9-10.0 mmol/L'}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-3xl font-extrabold text-[#72B100]">{metrics.timeInTarget}%</span>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">In Target</p>
-                    </div>
-                  </div>
-
-                  {/* Visual Stacked Bar - Dexcom Clarity Palette */}
-                  <div className="flex gap-6">
-                    {/* The Bar */}
-                    <div className="flex h-72 w-10 flex-col overflow-hidden rounded bg-slate-100 border border-slate-200/50 shadow-inner">
-                      {/* Very High - Amber/Orange */}
-                      <div 
-                        style={{ height: `${metrics.timeInVeryHigh}%` }} 
-                        className="bg-[#F29100] transition-all duration-500"
-                        title={`Very High: ${metrics.timeInVeryHigh}%`}
-                      />
-                      {/* High - Yellow */}
-                      <div 
-                        style={{ height: `${metrics.timeInHigh}%` }} 
-                        className="bg-[#FCD116] transition-all duration-500"
-                        title={`High: ${metrics.timeInHigh}%`}
-                      />
-                      {/* Target - Green */}
-                      <div 
-                        style={{ height: `${metrics.timeInTarget}%` }} 
-                        className="bg-[#72B100] transition-all duration-500"
-                        title={`In Range: ${metrics.timeInTarget}%`}
-                      />
-                      {/* Low - Red */}
-                      <div 
-                        style={{ height: `${metrics.timeInLow}%` }} 
-                        className="bg-[#F04124] transition-all duration-500"
-                        title={`Low: ${metrics.timeInLow}%`}
-                      />
-                      {/* Very Low - Dark Red */}
-                      <div 
-                        style={{ height: `${metrics.timeInVeryLow}%` }} 
-                        className="bg-[#9C0006] transition-all duration-500"
-                        title={`Very Low: ${metrics.timeInVeryLow}%`}
-                      />
-                    </div>
-
-                    {/* Legends and detailed info */}
-                    <div className="flex-1 flex flex-col justify-between py-1">
-                      {/* Very High Legend */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-3.5 w-3.5 rounded bg-[#F29100]" />
-                          <div>
-                            <span className="font-bold text-slate-700">Very High</span>
-                            <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '> 250 mg/dL' : '> 13.9 mmol/L'}</span>
-                          </div>
-                        </div>
-                        <span className="font-bold text-slate-900">{metrics.timeInVeryHigh}%</span>
-                      </div>
-
-                      {/* High Legend */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-3.5 w-3.5 rounded bg-[#FCD116]" />
-                          <div>
-                            <span className="font-bold text-slate-700">High</span>
-                            <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '181-250 mg/dL' : '10.1-13.9 mmol/L'}</span>
-                          </div>
-                        </div>
-                        <span className="font-bold text-slate-900">{metrics.timeInHigh}%</span>
-                      </div>
-
-                      {/* Target Legend */}
-                      <div className="flex items-center justify-between text-xs py-2 border-y border-slate-100 bg-[#72B100]/5 px-2.5 rounded-lg">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-4 w-4 rounded bg-[#72B100]" />
-                          <div>
-                            <span className="font-extrabold text-[#527e00]">In Range</span>
-                            <span className="ml-2 text-[#72B100] text-[10px] font-bold">{units === GlucoseUnit.MGDL ? '70-180 mg/dL' : '3.9-10.0 mmol/L'}</span>
-                          </div>
-                        </div>
-                        <span className="font-extrabold text-[#72B100] text-sm">{metrics.timeInTarget}%</span>
-                      </div>
-
-                      {/* Low Legend */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-3.5 w-3.5 rounded bg-[#F04124]" />
-                          <div>
-                            <span className="font-bold text-slate-700">Low</span>
-                            <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '54-69 mg/dL' : '3.0-3.8 mmol/L'}</span>
-                          </div>
-                        </div>
-                        <span className="font-bold text-slate-900">{metrics.timeInLow}%</span>
-                      </div>
-
-                      {/* Very Low Legend */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-3.5 w-3.5 rounded bg-[#9C0006]" />
-                          <div>
-                            <span className="font-bold text-slate-700">Very Low</span>
-                            <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '< 54 mg/dL' : '< 3.0 mmol/L'}</span>
-                          </div>
-                        </div>
-                        <span className="font-bold text-slate-900">{metrics.timeInVeryLow}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Stats Grid Cards (5 cols) */}
-                <div className="lg:col-span-5 flex flex-col gap-6">
-                  
-                  {/* Average Glucose Card */}
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Average Glucose</span>
-                      <TrendingUp className="h-4.5 w-4.5 text-slate-400" />
-                    </div>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-4xl font-extrabold text-slate-900">{metrics.mean}</span>
-                      <span className="text-xs font-bold text-slate-400 uppercase">{units}</span>
-                    </div>
-                    <p className="mt-2.5 text-xs text-slate-500 font-medium">
-                      Standard Deviation: <span className="font-bold text-slate-800">± {metrics.stdDev} {units}</span>
-                    </p>
-                  </div>
-
-                  {/* Glucose Management Indicator (GMI) */}
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Glucose Management Indicator (GMI)</span>
-                      <CheckCircle2 className="h-4.5 w-4.5 text-slate-400" />
-                    </div>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-4xl font-extrabold text-slate-900">{metrics.gmi}%</span>
-                    </div>
-                    <p className="mt-2.5 text-[10px] text-slate-400 leading-normal font-medium">
-                      An estimate of HbA1c based on average glucose readings over this period. Formerly referred to as estimated HbA1c.
-                    </p>
-                  </div>
-
-                  {/* Glucose Variability Card */}
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Glucose Variability</span>
-                      <Clock className="h-4.5 w-4.5 text-slate-400" />
-                    </div>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-4xl font-extrabold text-slate-900">{metrics.cv}%</span>
-                      <span className="text-xs font-bold text-slate-400 uppercase">CV</span>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${
-                        metrics.cv <= 36 
-                          ? 'bg-[#72B100]/5 text-[#527e00] border-[#72B100]/20' 
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}>
-                        {metrics.cv <= 36 ? 'Stable (Low Variability)' : 'High Variability'}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase">Target: ≤ 36%</span>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'agp' && (
               <div className="space-y-6">
-                {/* 1. AGP Chart Card */}
+                
+                {/* Top Section: TIR and key statistics cards */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  
+                  {/* Time in Range Card */}
+                  <div className="lg:col-span-7 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="mb-6 flex items-center justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold tracking-tight text-slate-900">Time in Range</h2>
+                        <p className="text-xs text-slate-400 font-medium">Target: {units === GlucoseUnit.MGDL ? '70-180 mg/dL' : '3.9-10.0 mmol/L'}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-3xl font-extrabold text-[#72B100]">{metrics.timeInTarget}%</span>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">In Target</p>
+                      </div>
+                    </div>
+
+                    {/* Visual Stacked Bar - Dexcom Clarity Palette */}
+                    <div className="flex gap-6">
+                      {/* The Bar */}
+                      <div className="flex h-72 w-10 flex-col overflow-hidden rounded bg-slate-100 border border-slate-200/50 shadow-inner">
+                        {/* Very High - Amber/Orange */}
+                        <div 
+                          style={{ height: `${metrics.timeInVeryHigh}%` }} 
+                          className="bg-[#F29100] transition-all duration-500"
+                          title={`Very High: ${metrics.timeInVeryHigh}%`}
+                        />
+                        {/* High - Yellow */}
+                        <div 
+                          style={{ height: `${metrics.timeInHigh}%` }} 
+                          className="bg-[#FCD116] transition-all duration-500"
+                          title={`High: ${metrics.timeInHigh}%`}
+                        />
+                        {/* Target - Green */}
+                        <div 
+                          style={{ height: `${metrics.timeInTarget}%` }} 
+                          className="bg-[#72B100] transition-all duration-500"
+                          title={`In Range: ${metrics.timeInTarget}%`}
+                        />
+                        {/* Low - Red */}
+                        <div 
+                          style={{ height: `${metrics.timeInLow}%` }} 
+                          className="bg-[#F04124] transition-all duration-500"
+                          title={`Low: ${metrics.timeInLow}%`}
+                        />
+                        {/* Very Low - Dark Red */}
+                        <div 
+                          style={{ height: `${metrics.timeInVeryLow}%` }} 
+                          className="bg-[#9C0006] transition-all duration-500"
+                          title={`Very Low: ${metrics.timeInVeryLow}%`}
+                        />
+                      </div>
+
+                      {/* Legends and detailed info */}
+                      <div className="flex-1 flex flex-col justify-between py-1">
+                        {/* Very High Legend */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="h-3.5 w-3.5 rounded bg-[#F29100]" />
+                            <div>
+                              <span className="font-bold text-slate-700">Very High</span>
+                              <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '> 250 mg/dL' : '> 13.9 mmol/L'}</span>
+                            </div>
+                          </div>
+                          <span className="font-bold text-slate-900">{metrics.timeInVeryHigh}%</span>
+                        </div>
+
+                        {/* High Legend */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="h-3.5 w-3.5 rounded bg-[#FCD116]" />
+                            <div>
+                              <span className="font-bold text-slate-700">High</span>
+                              <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '181-250 mg/dL' : '10.1-13.9 mmol/L'}</span>
+                            </div>
+                          </div>
+                          <span className="font-bold text-slate-900">{metrics.timeInHigh}%</span>
+                        </div>
+
+                        {/* Target Legend */}
+                        <div className="flex items-center justify-between text-xs py-2 border-y border-slate-100 bg-[#72B100]/5 px-2.5 rounded-lg">
+                          <div className="flex items-center gap-2.5">
+                            <span className="h-4 w-4 rounded bg-[#72B100]" />
+                            <div>
+                              <span className="font-extrabold text-[#527e00]">In Range</span>
+                              <span className="ml-2 text-[#72B100] text-[10px] font-bold">{units === GlucoseUnit.MGDL ? '70-180 mg/dL' : '3.9-10.0 mmol/L'}</span>
+                            </div>
+                          </div>
+                          <span className="font-extrabold text-[#72B100] text-sm">{metrics.timeInTarget}%</span>
+                        </div>
+
+                        {/* Low Legend */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="h-3.5 w-3.5 rounded bg-[#F04124]" />
+                            <div>
+                              <span className="font-bold text-slate-700">Low</span>
+                              <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '54-69 mg/dL' : '3.0-3.8 mmol/L'}</span>
+                            </div>
+                          </div>
+                          <span className="font-bold text-slate-900">{metrics.timeInLow}%</span>
+                        </div>
+
+                        {/* Very Low Legend */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="h-3.5 w-3.5 rounded bg-[#9C0006]" />
+                            <div>
+                              <span className="font-bold text-slate-700">Very Low</span>
+                              <span className="ml-2 text-slate-400 text-[10px] font-semibold">{units === GlucoseUnit.MGDL ? '< 54 mg/dL' : '< 3.0 mmol/L'}</span>
+                            </div>
+                          </div>
+                          <span className="font-bold text-slate-900">{metrics.timeInVeryLow}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats Grid Cards */}
+                  <div className="lg:col-span-5 flex flex-col gap-6">
+                    
+                    {/* Average Glucose Card */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Average Glucose</span>
+                        <TrendingUp className="h-4.5 w-4.5 text-slate-400" />
+                      </div>
+                      <div className="mt-3 flex items-baseline gap-1.5">
+                        <span className="text-4xl font-extrabold text-slate-900">{metrics.mean}</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase">{units}</span>
+                      </div>
+                      <p className="mt-2.5 text-xs text-slate-500 font-medium">
+                        Standard Deviation: <span className="font-bold text-slate-800">± {metrics.stdDev} {units}</span>
+                      </p>
+                    </div>
+
+                    {/* Glucose Management Indicator (GMI) */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Glucose Management Indicator (GMI)</span>
+                        <CheckCircle2 className="h-4.5 w-4.5 text-slate-400" />
+                      </div>
+                      <div className="mt-3 flex items-baseline gap-1.5">
+                        <span className="text-4xl font-extrabold text-slate-900">{metrics.gmi}%</span>
+                      </div>
+                      <p className="mt-2.5 text-[10px] text-slate-400 leading-normal font-medium">
+                        An estimate of HbA1c based on average glucose readings over this period. Formerly referred to as estimated HbA1c.
+                      </p>
+                    </div>
+
+                    {/* Glucose Variability Card */}
+                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Glucose Variability</span>
+                        <Clock className="h-4.5 w-4.5 text-slate-400" />
+                      </div>
+                      <div className="mt-3 flex items-baseline gap-1.5">
+                        <span className="text-4xl font-extrabold text-slate-900">{metrics.cv}%</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase">CV</span>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${
+                          metrics.cv <= 36 
+                            ? 'bg-[#72B100]/5 text-[#527e00] border-[#72B100]/20' 
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {metrics.cv <= 36 ? 'Stable (Low Variability)' : 'High Variability'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase">Target: ≤ 36%</span>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Middle Section: Time in Range by Hour of Day chart */}
+                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <HourlyTIRChart hourlyData={calculateHourlyTIR(entries)} days={dateRangeDays} />
+                </div>
+
+                {/* Bottom Section: Ambulatory Glucose Profile (AGP) chart */}
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                   <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
                 </div>
 
-                {/* 2. Patterns Card */}
+                {/* Patterns Placeholder Section */}
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
                   <h3 className="text-md font-bold text-slate-900 mb-3">Patterns</h3>
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-6 text-center text-slate-500">
@@ -450,9 +449,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </p>
                   </div>
                 </div>
+
               </div>
             )}
 
+            {/* Daily Logs Tab Placeholder */}
             {activeTab === 'daily' && (
               <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                 <Database className="mx-auto h-12 w-12 text-slate-300 mb-4 animate-pulse" />
