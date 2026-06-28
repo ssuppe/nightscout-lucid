@@ -45,12 +45,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const yMin = Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushionMin));
     const yMax = Math.ceil(maxVal + cushionMax);
 
-    console.log('[DEBUG HourlyGlucoseChart] Units:', units, 'isMgdl:', isMgdl);
-    console.log('[DEBUG HourlyGlucoseChart] targetMin:', targetMin, 'targetMax:', targetMax);
-    console.log('[DEBUG HourlyGlucoseChart] stats length:', hourlyStats.length);
-    console.log('[DEBUG HourlyGlucoseChart] maxVal (raw):', allVals.length > 0 ? Math.max(...allVals) : 'empty');
-    console.log('[DEBUG HourlyGlucoseChart] Computed yMin:', yMin, 'yMax:', yMax);
-    console.log('[DEBUG HourlyGlucoseChart] raw hourlyStats:', JSON.stringify(hourlyStats));
+
 
     const option: echarts.EChartsOption = {
       // Title and Legend are rendered in parent component via HTML
