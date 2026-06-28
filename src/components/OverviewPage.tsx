@@ -203,6 +203,36 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   const selectWeekdays = () => setSelectedDays([1, 2, 3, 4, 5]);
   const selectWeekends = () => setSelectedDays([0, 6]);
 
+  const getWeeklyCalendarRows = () => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const start = new Date(today);
+    start.setDate(today.getDate() - dateRangeDays + 1);
+    start.setHours(0, 0, 0, 0);
+
+    const weeks: Date[][] = [];
+    
+    // Find the Monday of the week containing 'start'
+    const firstMonday = new Date(start);
+    const day = firstMonday.getDay();
+    const diff = firstMonday.getDate() - day + (day === 0 ? -6 : 1);
+    firstMonday.setDate(diff);
+    firstMonday.setHours(0, 0, 0, 0);
+
+    const current = new Date(firstMonday);
+    while (current <= today) {
+      const weekDates = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(current);
+        d.setDate(current.getDate() + i);
+        weekDates.push(d);
+      }
+      weeks.push(weekDates);
+      current.setDate(current.getDate() + 7);
+    }
+    return weeks;
+  };
+
   const weekdays = [
     { label: 'Sun', value: 0 },
     { label: 'Mon', value: 1 },
@@ -897,43 +927,36 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
               {/* AGP PROFILE TAB */}
               {activeTab === 'agp' && (
-                <div className="space-y-6">
+                <div className="bg-white border border-slate-200 shadow-sm p-8 rounded-xl max-w-5xl mx-auto space-y-8 text-left font-sans">
                   
-                  {/* Stats header */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
-                    <div className="md:col-span-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
-                      <div>
-                        <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-4">Glucose Statistics</h3>
-                        <div className="grid grid-cols-2 gap-y-4 gap-x-6">
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">Average Glucose</span>
-                            <div className="text-2xl font-extrabold text-slate-800">{formattedMean} <span className="text-xs text-slate-400 font-bold">{units}</span></div>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">GMI</span>
-                            <div className="text-2xl font-extrabold text-slate-800">{metrics.gmi}%</div>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">Glucose Variability</span>
-                            <div className="text-2xl font-extrabold text-slate-800">{metrics.cv}% <span className="text-xs text-slate-400 font-bold">CV</span></div>
-                            <div className="text-[10px] text-slate-400 font-medium">SD: ±{formattedStdDev} {units}</div>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">Active Wear</span>
-                            <div className="text-2xl font-extrabold text-slate-800">{wearPercentage}%</div>
-                            <div className="text-[10px] text-slate-400 font-medium">{activeSensorDays} Days of Data</div>
-                          </div>
-                        </div>
-                      </div>
+                  {/* captūrAGP Report Header */}
+                  <div className="border-b-2 border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[#72B100] font-black text-2xl tracking-tight uppercase">dexcom</span>
+                      <span className="text-slate-300 font-light text-2xl">|</span>
+                      <span className="text-[#004B87] font-black text-lg tracking-tight">captūrAGP™</span>
                     </div>
+                    <div className="text-left sm:text-right">
+                      <div className="text-sm font-black text-slate-800">Steven Suppe</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">DOB: 23 June 1981</div>
+                    </div>
+                  </div>
 
-                    <div className="md:col-span-6 flex flex-col justify-between md:pl-6">
+                  {/* Summary Block: Time in Ranges and Glucose Metrics */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+                    
+                    {/* Left Box: Time in Ranges */}
+                    <div className="md:col-span-7 border border-slate-200 rounded-xl p-5 flex flex-col justify-between bg-slate-50/20">
                       <div>
-                        <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-4">Time in Range</h3>
+                        <div className="flex justify-between items-center mb-1">
+                          <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Time in Ranges</h4>
+                          <span className="text-[9px] text-slate-400 font-bold">Goals for Type 1 and Type 2 Diabetes</span>
+                        </div>
+                        <p className="text-[9px] text-[#72B100] font-bold mb-4">Each 5% increase in Time in Target is clinically beneficial</p>
                         
-                        <div className="flex gap-4 items-center">
-                          {/* Mini vertical stacked bar */}
-                          <div className="flex h-36 w-8 flex-col overflow-hidden rounded bg-slate-100 border border-slate-200/50 shadow-inner flex-shrink-0">
+                        <div className="flex gap-5 items-center">
+                          {/* Vertical bar */}
+                          <div className="flex h-36 w-10 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
                             {metrics.timeInVeryHigh > 0 && <div style={{ height: `${metrics.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
                             {metrics.timeInHigh > 0 && <div style={{ height: `${metrics.timeInHigh}%` }} className="bg-[#FCD116]" />}
                             {metrics.timeInTarget > 0 && <div style={{ height: `${metrics.timeInTarget}%` }} className="bg-[#72B100]" />}
@@ -941,46 +964,192 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                             {metrics.timeInVeryLow > 0 && <div style={{ height: `${metrics.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
                           </div>
 
-                          <div className="flex-1 grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-bold">
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-2.5 w-2.5 rounded bg-[#F29100]" />
-                              <span className="text-slate-500">Very High</span>
+                          {/* Legends list */}
+                          <div className="flex-1 flex flex-col justify-between py-1 text-[11px] font-bold text-slate-500 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded bg-[#F29100]" />
+                                <span>Very High</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInVeryHigh, entries.filter(e => e.sgv > 250).length)}</span>
+                                <span className="text-slate-400 text-[10px] w-14 text-right">Goal &lt; 5%</span>
+                              </div>
                             </div>
-                            <div className="text-right text-slate-800">{formatPctLabel(metrics.timeInVeryHigh, entries.filter(e => e.sgv > 250).length)}</div>
 
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-2.5 w-2.5 rounded bg-[#FCD116]" />
-                              <span className="text-slate-500">High</span>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded bg-[#FCD116]" />
+                                <span>High</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInHigh, entries.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                                <span className="text-slate-400 text-[10px] w-14 text-right">-</span>
+                              </div>
                             </div>
-                            <div className="text-right text-slate-800">{formatPctLabel(metrics.timeInHigh, entries.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</div>
 
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-2.5 w-2.5 rounded bg-[#72B100]" />
-                              <span className="text-[#527e00]">In Range</span>
+                            <div className="flex items-center justify-between py-1 bg-[#72B100]/5 px-2 rounded">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded bg-[#72B100]" />
+                                <span className="text-[#527e00]">In Target</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-[#72B100] font-black">{metrics.timeInTarget}%</span>
+                                <span className="text-[#72B100]/80 text-[10px] w-14 text-right font-black">Goal &gt; 70%</span>
+                              </div>
                             </div>
-                            <div className="text-right text-[#72B100]">{metrics.timeInTarget}%</div>
 
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-2.5 w-2.5 rounded bg-[#F04124]" />
-                              <span className="text-slate-500">Low</span>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded bg-[#F04124]" />
+                                <span>Low</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInLow, entries.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                                <span className="text-slate-400 text-[10px] w-14 text-right">Goal &lt; 4%</span>
+                              </div>
                             </div>
-                            <div className="text-right text-slate-800">{formatPctLabel(metrics.timeInLow, entries.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</div>
 
-                            <div className="flex items-center gap-1.5">
-                              <span className="h-2.5 w-2.5 rounded bg-[#9C0006]" />
-                              <span className="text-slate-500">Very Low</span>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded bg-[#9C0006]" />
+                                <span>Very Low</span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInVeryLow, entries.filter(e => e.sgv < 54).length)}</span>
+                                <span className="text-slate-400 text-[10px] w-14 text-right">Goal &lt; 1%</span>
+                              </div>
                             </div>
-                            <div className="text-right text-slate-800">{formatPctLabel(metrics.timeInVeryLow, entries.filter(e => e.sgv < 54).length)}</div>
                           </div>
                         </div>
                       </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between text-[10px] font-bold text-slate-400">
+                        <span>Target: {isMgdl ? '70-180 mg/dL' : '3.9-10.0 mmol/L'}</span>
+                        <div className="flex gap-4">
+                          <span>Above: {metrics.timeInVeryHigh + metrics.timeInHigh}%</span>
+                          <span>Below: {metrics.timeInVeryLow + metrics.timeInLow}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Box: Glucose Metrics */}
+                    <div className="md:col-span-5 border border-slate-200 rounded-xl p-5 flex flex-col justify-between bg-slate-50/20">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4">Glucose Metrics</h4>
+                        <table className="w-full text-xs font-bold text-slate-600">
+                          <tbody>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 text-slate-400">Average glucose</td>
+                              <td className="py-2.5 text-slate-800 font-black text-right">{formattedMean} {units}</td>
+                              <td className="py-2.5 text-slate-400 text-[9px] text-right pl-3">Goal &lt; {isMgdl ? '154 mg/dL' : '8.5 mmol/L'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 text-slate-400">GMI</td>
+                              <td className="py-2.5 text-slate-800 font-black text-right">{metrics.gmi}%</td>
+                              <td className="py-2.5 text-slate-400 text-[9px] text-right pl-3">Goal &lt; 7.0%</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 text-slate-400">Glucose Variability (CV)</td>
+                              <td className="py-2.5 text-slate-800 font-black text-right">{metrics.cv}%</td>
+                              <td className="py-2.5 text-slate-400 text-[9px] text-right pl-3">Goal &le; 36%</td>
+                            </tr>
+                            <tr>
+                              <td className="py-2.5 text-slate-400">Time CGM Active</td>
+                              <td className="py-2.5 text-slate-800 font-black text-right" colSpan={2}>{wearPercentage}%</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <div className="mt-4 text-[9px] text-slate-400 leading-normal font-semibold">
+                        GMI (Glucose Management Indicator) estimates laboratory HbA1c based on average sensor values.
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* AGP ECharts Chart Wrapper */}
+                  <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/5">
+                    <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
+                  </div>
+
+                  {/* Daily Glucose Profile calendar grid */}
+                  <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/5">
+                    <div className="mb-6">
+                      <h3 className="text-sm font-extrabold text-slate-800">Daily Glucose Profile</h3>
+                      <p className="text-xs text-slate-400 font-semibold mt-0.5">Each daily profile represents a midnight-to-midnight period</p>
+                    </div>
+
+                    {/* Columns header row */}
+                    <div className="grid grid-cols-7 gap-3 mb-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      <div>Monday</div>
+                      <div>Tuesday</div>
+                      <div>Wednesday</div>
+                      <div>Thursday</div>
+                      <div>Friday</div>
+                      <div>Saturday</div>
+                      <div>Sunday</div>
+                    </div>
+
+                    {/* Weekly Rows */}
+                    <div className="space-y-4">
+                      {getWeeklyCalendarRows().map((weekRow, wIdx) => (
+                        <div key={wIdx} className="grid grid-cols-7 gap-3">
+                          {weekRow.map((cellDate, dIdx) => {
+                            const dateStr = cellDate.toDateString();
+                            const dayEntries = entries.filter(e => new Date(e.date).toDateString() === dateStr);
+                            const dayTreatments = treatments.filter(t => {
+                              const date = t.date || new Date(t.created_at).getTime();
+                              return new Date(date).toDateString() === dateStr;
+                            });
+
+                            const displayDayNum = cellDate.getDate();
+                            const monthName = cellDate.toLocaleDateString(undefined, { month: 'short' });
+
+                            return (
+                              <div 
+                                key={dIdx} 
+                                className={`border rounded-lg p-2 flex flex-col justify-between min-h-[90px] bg-white transition shadow-sm ${
+                                  dayEntries.length > 0 
+                                    ? 'border-slate-200 hover:border-slate-300' 
+                                    : 'border-dashed border-slate-200 bg-slate-50/40 opacity-50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between text-[9px] font-black text-slate-400 uppercase mb-1">
+                                  <span>{displayDayNum} {monthName}</span>
+                                  {dayEntries.length > 0 && (
+                                    <span className="text-[8px] text-slate-500">
+                                      {dayEntries.length} logs
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex-1 flex items-center justify-center min-h-[45px]">
+                                  {dayEntries.length > 0 ? (
+                                    <DailyMiniChart
+                                      entries={dayEntries}
+                                      treatments={dayTreatments}
+                                      units={units}
+                                      dayStart={cellDate.getTime()}
+                                    />
+                                  ) : (
+                                    <span className="text-[9px] text-slate-300 italic font-semibold">Empty</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* AGP ECharts line */}
-                  <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
+                  {/* AGP License/Copyright footer */}
+                  <div className="pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400 font-bold">
+                    Patent pending - HealthPartners Institute dba International Diabetes Center - All Rights Reserved. ©2026 Nightscout Lucid
                   </div>
+
                 </div>
               )}
 
