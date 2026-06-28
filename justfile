@@ -38,7 +38,7 @@ package: build
 deploy: package
     @echo "Pushing artifact to {{SERVER_IP}}..."
     ssh {{SERVER_USER}}@{{SERVER_IP}} "mkdir -p ~/app/deploy-artifacts"
-    rsync -avzhP {{ARTIFACT}} {{SERVER_USER}}@{{SERVER_IP}}:~/app/deploy-artifacts/clarity.tar.gz
+    rsync -avhP {{ARTIFACT}} {{SERVER_USER}}@{{SERVER_IP}}:~/app/deploy-artifacts/clarity.tar.gz
     @echo "Loading image and restarting clarity service on server..."
     ssh -t {{SERVER_USER}}@{{SERVER_IP}} " \
         cd ~/app && \
