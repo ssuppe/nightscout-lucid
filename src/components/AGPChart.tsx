@@ -12,6 +12,10 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
+  const isMgdl = units === GlucoseUnit.MGDL;
+  const targetMin = isMgdl ? 70 : 3.9;
+  const targetMax = isMgdl ? 180 : 10.0;
+
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -27,23 +31,14 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
     
     // For stacked shading:
     // Group 1 (10-90): stackName '10-90'
-    // Series 1: base_p10 = p10 values
-    // Series 2: diff_p90 = p90 - p10 values
     const baseP10 = percentiles.map(b => b.p10);
     const diffP90 = percentiles.map(b => b.p90 - b.p10);
 
     // Group 2 (25-75): stackName '25-75'
-    // Series 3: base_p25 = p25 values
-    // Series 4: diff_p75 = p75 - p25 values
     const baseP25 = percentiles.map(b => b.p25);
     const diffP75 = percentiles.map(b => b.p75 - b.p25);
 
     const medianP50 = percentiles.map(b => b.p50);
-
-    // Setup unit specific bounds
-    const isMgdl = units === GlucoseUnit.MGDL;
-    const targetMin = isMgdl ? 70 : 3.9;
-    const targetMax = isMgdl ? 180 : 10.0;
 
     // Calculate dynamic smart y-axis scale based on data
     const p10Min = percentiles.length > 0 ? Math.min(...percentiles.map(b => b.p10)) : targetMin;
@@ -59,59 +54,52 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
 
     const option: echarts.EChartsOption = {
       title: {
-        text: 'Ambulatory Glucose Profile (AGP)',
-        subtext: `Target Range: ${targetMin}-${targetMax} ${units}. Grouped by 15-minute intervals.`,
-        left: 'left',
-        textStyle: {
-          fontSize: 16,
-          fontWeight: 'bold',
-          color: '#0f172a'
-        },
-        subtextStyle: {
-          fontSize: 11,
-          color: '#64748b'
-        }
+        show: false
       },
       tooltip: {
         trigger: 'axis',
         formatter: (params: any) => {
           const time = params[0].axisValue;
-          // Find the corresponding bin in our percentiles data
           const bin = percentiles.find(b => b.timeLabel === time);
           if (!bin) return '';
 
+          // Format value strings based on units (1 decimal place for mmol/L, integer for mg/dL)
+          const formatVal = (val: number) => isMgdl ? val.toFixed(0) : val.toFixed(1);
+
           return `
-            <div style="font-family: sans-serif; font-size: 12px; padding: 4px;">
-              <div style="font-weight: bold; margin-bottom: 4px; color: #1e293b;">Time: ${time}</div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #64748b;">90th Percentile:</span>
-                <span style="font-weight: bold;">${bin.p90}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #1e3a8a;">75th Percentile:</span>
-                <span style="font-weight: bold; color: #1e3a8a;">${bin.p75}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #0f172a; font-weight: bold;">50th (Median):</span>
-                <span style="font-weight: bold; color: #72B100;">${bin.p50}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #1e3a8a;">25th Percentile:</span>
-                <span style="font-weight: bold; color: #1e3a8a;">${bin.p25}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 16px;">
-                <span style="color: #64748b;">10th Percentile:</span>
-                <span style="font-weight: bold;">${bin.p10}</span>
+            <div style="font-family: sans-serif; font-size: 11px; padding: 4px;">
+              <div style="font-weight: bold; margin-bottom: 6px; color: #1e293b;">Time: ${time}</div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #64748b;">90th Percentile:</span>
+                  <span style="font-weight: bold; color: #1e293b;">${formatVal(bin.p90)} ${units}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #005eb8;">75th Percentile:</span>
+                  <span style="font-weight: bold; color: #005eb8;">${formatVal(bin.p75)} ${units}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #004b87; font-weight: bold;">50th (Median):</span>
+                  <span style="font-weight: bold; color: #004b87;">${formatVal(bin.p50)} ${units}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #005eb8;">25th Percentile:</span>
+                  <span style="font-weight: bold; color: #005eb8;">${formatVal(bin.p25)} ${units}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #64748b;">10th Percentile:</span>
+                  <span style="font-weight: bold; color: #1e293b;">${formatVal(bin.p10)} ${units}</span>
+                </div>
               </div>
             </div>
           `;
         }
       },
       grid: {
-        left: '5%',
-        right: '5%',
+        left: '4%',
+        right: '4%',
         bottom: '8%',
-        top: '18%',
+        top: '6%',
         containLabel: true
       },
       xAxis: {
@@ -125,8 +113,8 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
         },
         axisLabel: {
           color: '#64748b',
-          fontSize: 10,
-          interval: 8, // show label every 2 hours (8 * 15min = 120min)
+          fontSize: 9,
+          interval: 8, // show label every 2 hours
           formatter: (value: string) => value
         },
         splitLine: {
@@ -144,7 +132,7 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
         max: yMax,
         axisLabel: {
           color: '#64748b',
-          fontSize: 10
+          fontSize: 9
         },
         splitLine: {
           show: true,
@@ -160,16 +148,12 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
           markArea: {
             silent: true,
             itemStyle: {
-              color: 'rgba(114, 177, 0, 0.04)' // soft green
+              color: 'rgba(114, 177, 0, 0.02)' // soft green target block
             },
             data: [
               [
-                {
-                  yAxis: targetMin
-                },
-                {
-                  yAxis: targetMax
-                }
+                { yAxis: targetMin },
+                { yAxis: targetMax }
               ]
             ]
           },
@@ -189,8 +173,8 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
               formatter: (params) => `${params.value} ${units}`
             },
             data: [
-              { yAxis: targetMin, name: 'Target Low' },
-              { yAxis: targetMax, name: 'Target High' }
+              { yAxis: targetMin },
+              { yAxis: targetMax }
             ]
           }
         },
@@ -213,7 +197,7 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
           symbol: 'none',
           showSymbol: false,
           areaStyle: {
-            color: 'rgba(37, 99, 235, 0.08)' // very light blue
+            color: 'rgba(0, 94, 184, 0.08)' // light Dexcom blue
           },
           lineStyle: { opacity: 0 }
         },
@@ -236,7 +220,7 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
           symbol: 'none',
           showSymbol: false,
           areaStyle: {
-            color: 'rgba(29, 78, 216, 0.22)' // darker, translucent blue
+            color: 'rgba(0, 94, 184, 0.28)' // medium Dexcom blue
           },
           lineStyle: { opacity: 0 }
         },
@@ -248,7 +232,7 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
           symbol: 'none',
           showSymbol: false,
           lineStyle: {
-            color: '#1d4ed8', // bold blue
+            color: '#004B87', // bold corporate blue
             width: 3.5
           }
         }
@@ -257,7 +241,6 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
 
     chart.setOption(option);
 
-    // Handle resize
     const handleResize = () => {
       chart.resize();
     };
@@ -266,12 +249,40 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [percentiles, units]);
+  }, [percentiles, units, isMgdl, targetMin, targetMax]);
 
   return (
-    <div className="w-full">
+    <div className="w-full text-left">
+      {/* HTML Title & Header Block */}
+      <div className="mb-4">
+        <h3 className="text-sm font-extrabold text-slate-800">Ambulatory Glucose Profile (AGP)</h3>
+        <p className="text-xs text-slate-400 font-bold mt-0.5">
+          Grouped by 15-minute intervals. Target Range: {targetMin} - {targetMax} {units}.
+        </p>
+      </div>
+
       {/* Chart container */}
       <div ref={chartRef} className="h-96 w-full" />
+
+      {/* Dexcom Clarity Styled HTML Legend */}
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-t border-slate-100 pt-4 text-[11px] font-bold text-slate-500">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-1 bg-[#004B87] rounded-full" />
+          <span>50% Median</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-4 bg-[#005EB8]/30 border border-[#005EB8]/45 rounded-sm" />
+          <span>25% - 75% of readings</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-4 bg-[#005EB8]/10 border border-[#005EB8]/20 rounded-sm" />
+          <span>10% - 90% of readings</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-4 bg-[#72B100]/5 border border-dashed border-[#72B100] rounded-sm" />
+          <span>Target Range ({targetMin} - {targetMax} {units})</span>
+        </div>
+      </div>
     </div>
   );
 };
