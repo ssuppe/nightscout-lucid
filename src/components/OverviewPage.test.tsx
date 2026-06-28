@@ -3,6 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { OverviewPage } from './OverviewPage';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 
+// Mock AGPChart to avoid canvas rendering dependencies during page-level tests
+vi.mock('./AGPChart', () => ({
+  AGPChart: () => <div data-testid="mock-agp-chart" />,
+}));
+
 // Mock NightscoutClient
 const mockClient = {
   getBaseUrl: () => 'https://my-nightscout.com',
@@ -85,5 +90,22 @@ describe('OverviewPage', () => {
     fireEvent.click(btnDisconnect);
 
     expect(mockOnDisconnect).toHaveBeenCalled();
+  });
+
+  it('displays the AGP Profile tab contents and placeholder patterns card when clicked', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const agpTabBtn = screen.getByRole('button', { name: 'AGP Profile' });
+    fireEvent.click(agpTabBtn);
+
+    // Verify AGP specific elements are displayed
+    expect(screen.getByTestId('mock-agp-chart')).toBeInTheDocument();
+    expect(screen.getByText('Patterns')).toBeInTheDocument();
+    expect(screen.getByText('Patterns not implemented yet')).toBeInTheDocument();
   });
 });

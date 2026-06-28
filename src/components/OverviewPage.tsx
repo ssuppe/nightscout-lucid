@@ -6,15 +6,14 @@ import {
   Clock, 
   CheckCircle2, 
   Database,
-  BarChart2,
   Calendar,
   AlertTriangle
 } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 import type { NightscoutEntry } from '../utils/nightscout';
-import { calculateGlucoseMetrics } from '../utils/metrics';
+import { calculateGlucoseMetrics, calculateAGPPercentiles } from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
-
+import { AGPChart } from './AGPChart';
 interface OverviewPageProps {
   client: NightscoutClient;
   preferredUnits: GlucoseUnit;
@@ -433,14 +432,24 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </div>
             )}
 
-            {/* Placeholder Tabs */}
             {activeTab === 'agp' && (
-              <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                <BarChart2 className="mx-auto h-12 w-12 text-slate-300 mb-4 animate-pulse" />
-                <h3 className="text-lg font-bold text-slate-800">AGP Profile Chart</h3>
-                <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
-                  The Ambulatory Glucose Profile (AGP) profile chart details 24-hour glucose distribution percentiles. This is scheduled for the next phase.
-                </p>
+              <div className="space-y-6">
+                {/* 1. AGP Chart Card */}
+                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
+                </div>
+
+                {/* 2. Patterns Card */}
+                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
+                  <h3 className="text-md font-bold text-slate-900 mb-3">Patterns</h3>
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-6 text-center text-slate-500">
+                    <AlertTriangle className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                    <p className="text-sm font-semibold text-slate-700">Patterns not implemented yet</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                      Algorithm-based pattern detection (e.g., repeating highs/lows at specific times of day) is not implemented in the current version.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

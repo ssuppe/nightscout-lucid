@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGlucoseMetrics } from './metrics';
+import { calculateGlucoseMetrics, calculateAGPPercentiles } from './metrics';
 import { GlucoseUnit } from './nightscout';
 import type { NightscoutEntry } from './nightscout';
 
@@ -12,6 +12,7 @@ describe('Glucose Metrics Calculations', () => {
       date: Date.now() - idx * 5 * 60 * 1000, // 5 min intervals
       sgv: val,
       type: 'sgv',
+      direction: 'Flat',
     }));
   };
 
@@ -80,5 +81,54 @@ describe('Glucose Metrics Calculations', () => {
     expect(metrics.timeInTarget).toBe(100);
     // GMI is calculated from the mg/dL mean of 135. GMI = 3.31 + 0.02392 * 135 = 6.539% (rounds to 6.5%)
     expect(metrics.gmi).toBe(6.5);
+  });
+
+  describe('AGP Percentiles', () => {
+    it('calculates percentiles for a simple dataset correctly in mg/dL', () => {
+      const date = new Date();
+      date.setHours(12);
+      date.setMinutes(0);
+      date.setSeconds(0);
+      
+      const values = [70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170];
+      const entries = values.map((val, idx) => ({
+        _id: `id-${idx}`,
+        date: date.getTime(),
+        sgv: val,
+        direction: 'Flat',
+        type: 'sgv',
+      }));
+
+      const percentiles = calculateAGPPercentiles(entries, GlucoseUnit.MGDL);
+      expect(percentiles.length).toBe(96);
+      
+      const noonBin = percentiles[48]; // index 48 corresponds to 12:00
+      expect(noonBin.timeLabel).toBe('12:00');
+      expect(noonBin.p50).toBe(120); // Median
+      expect(noonBin.p10).toBe(80);  // 10th percentile
+      expect(noonBin.p90).toBe(160); // 90th percentile
+      expect(noonBin.p25).toBe(95);  // 25th percentile (interpolated)
+      expect(noonBin.p75).toBe(145); // 75th percentile (interpolated)
+    });
+
+    it('performs circular interpolation/fill for empty bins', () => {
+      const date = new Date();
+      date.setHours(6);
+      date.setMinutes(0);
+      
+      const entries = [{
+        _id: 'id-1',
+        date: date.getTime(),
+        sgv: 120,
+        direction: 'Flat',
+        type: 'sgv',
+      }];
+
+      const percentiles = calculateAGPPercentiles(entries, GlucoseUnit.MGDL);
+      
+      expect(percentiles[0].p50).toBe(120);
+      expect(percentiles[50].p50).toBe(120);
+      expect(percentiles[24].p50).toBe(120);
+    });
   });
 });

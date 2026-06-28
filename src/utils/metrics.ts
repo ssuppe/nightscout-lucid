@@ -117,3 +117,127 @@ export function calculateGlucoseMetrics(
     readingCount: count,
   };
 }
+
+export interface AGPBin {
+  timeLabel: string;
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+}
+
+function getPercentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const index = (sorted.length - 1) * p;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) {
+    return sorted[lower];
+  }
+  const weight = index - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
+
+export function calculateAGPPercentiles(
+  entries: NightscoutEntry[],
+  units: GlucoseUnit
+): AGPBin[] {
+  const bins: number[][] = Array.from({ length: 96 }, () => []);
+
+  // Filter and place entries in bins
+  const validEntries = entries.filter((e) => e.sgv && Number.isFinite(e.sgv));
+  validEntries.forEach((e) => {
+    const d = new Date(e.date);
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const binIdx = Math.floor(mins / 15);
+    if (binIdx >= 0 && binIdx < 96) {
+      bins[binIdx].push(e.sgv);
+    }
+  });
+
+  // Calculate raw percentiles
+  const rawBins = bins.map((vals, idx) => {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const hour = Math.floor(idx / 4).toString().padStart(2, '0');
+    const min = ((idx % 4) * 15).toString().padStart(2, '0');
+    const timeLabel = `${hour}:${min}`;
+
+    if (sorted.length === 0) {
+      return { timeLabel, p10: -1, p25: -1, p50: -1, p75: -1, p90: -1 };
+    }
+
+    return {
+      timeLabel,
+      p10: getPercentile(sorted, 0.1),
+      p25: getPercentile(sorted, 0.25),
+      p50: getPercentile(sorted, 0.5),
+      p75: getPercentile(sorted, 0.75),
+      p90: getPercentile(sorted, 0.9),
+    };
+  });
+
+  // Fill empty bins by searching for nearest non-empty bins (circular)
+  const filledBins = rawBins.map((bin, idx) => {
+    if (bin.p50 !== -1) return bin;
+
+    let foundLeft = -1;
+    let foundRight = -1;
+
+    for (let step = 1; step <= 48; step++) {
+      const l = (idx - step + 96) % 96;
+      const r = (idx + step) % 96;
+
+      if (rawBins[l].p50 !== -1) {
+        foundLeft = l;
+        break;
+      }
+      if (rawBins[r].p50 !== -1) {
+        foundRight = r;
+        break;
+      }
+    }
+
+    const sourceIdx = foundLeft !== -1 ? foundLeft : (foundRight !== -1 ? foundRight : -1);
+    if (sourceIdx === -1) {
+      // Default placeholder curve if no data exists anywhere
+      return {
+        timeLabel: bin.timeLabel,
+        p10: 70,
+        p25: 90,
+        p50: 110,
+        p75: 130,
+        p90: 150
+      };
+    }
+
+    return {
+      timeLabel: bin.timeLabel,
+      p10: rawBins[sourceIdx].p10,
+      p25: rawBins[sourceIdx].p25,
+      p50: rawBins[sourceIdx].p50,
+      p75: rawBins[sourceIdx].p75,
+      p90: rawBins[sourceIdx].p90,
+    };
+  });
+
+  // Convert to units and round
+  return filledBins.map((bin) => {
+    const convert = (val: number) => {
+      if (units === GlucoseUnit.MMOL) {
+        return roundTo(val / CONVERSION_FACTOR, 1);
+      } else {
+        return roundTo(val, 0);
+      }
+    };
+
+    return {
+      timeLabel: bin.timeLabel,
+      p10: convert(bin.p10),
+      p25: convert(bin.p25),
+      p50: convert(bin.p50),
+      p75: convert(bin.p75),
+      p90: convert(bin.p90),
+    };
+  });
+}
