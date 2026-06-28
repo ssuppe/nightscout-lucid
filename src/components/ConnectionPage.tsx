@@ -13,7 +13,7 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
   onConnect,
   initialUrl = '',
   initialToken = '',
-  initialUnits = GlucoseUnit.MGDL,
+  initialUnits = GlucoseUnit.MMOL,
 }) => {
   const [url, setUrl] = useState(initialUrl);
   const [token, setToken] = useState(initialToken);

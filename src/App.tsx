@@ -15,7 +15,7 @@ function App() {
   const [storedToken, setStoredToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
   const [storedUnits, setStoredUnits] = useState<GlucoseUnit>(() => {
     const val = sessionStorage.getItem(UNITS_KEY);
-    return (val === GlucoseUnit.MMOL ? GlucoseUnit.MMOL : GlucoseUnit.MGDL);
+    return (val === GlucoseUnit.MGDL ? GlucoseUnit.MGDL : GlucoseUnit.MMOL);
   });
 
   const [client, setClient] = useState<NightscoutClient | null>(() => {
@@ -54,7 +54,7 @@ function App() {
 
     setStoredUrl('');
     setStoredToken('');
-    setStoredUnits(GlucoseUnit.MGDL);
+    setStoredUnits(GlucoseUnit.MMOL);
     setClient(null);
   };
 
