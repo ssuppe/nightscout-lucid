@@ -482,6 +482,92 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             {activeTab === 'agp' && (
               <div className="space-y-6">
                 
+                {/* AGP Stats Header Block (Dexcom Clarity Style) */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
+                  
+                  {/* Glucose Statistics Column */}
+                  <div className="md:col-span-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6">
+                    <div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-4">Glucose Statistics</h3>
+                      <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Average Glucose</span>
+                          <div className="text-2xl font-extrabold text-slate-800">{metrics.mean} <span className="text-xs text-slate-400 font-bold">{units}</span></div>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">GMI</span>
+                          <div className="text-2xl font-extrabold text-slate-800">{metrics.gmi}%</div>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Glucose Variability</span>
+                          <div className="text-2xl font-extrabold text-slate-800">{metrics.cv}% <span className="text-xs text-slate-400 font-bold">CV</span></div>
+                          <div className="text-[10px] text-slate-400 font-medium">SD: ±{metrics.stdDev} {units}</div>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Active Wear</span>
+                          <div className="text-2xl font-extrabold text-slate-800">{wearPercentage}%</div>
+                          <div className="text-[10px] text-slate-400 font-medium">{activeSensorDays} Days of Data</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-[10px] text-slate-400 font-semibold">
+                      GMI estimate of HbA1c is based on average glucose readings.
+                    </div>
+                  </div>
+
+                  {/* Time in Range Column */}
+                  <div className="md:col-span-6 flex flex-col justify-between md:pl-6">
+                    <div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-4">Time in Range</h3>
+                      
+                      <div className="flex gap-4 items-center">
+                        {/* Compact Vertical Stacked Bar */}
+                        <div className="flex h-36 w-8 flex-col overflow-hidden rounded bg-slate-100 border border-slate-200/50 shadow-inner flex-shrink-0">
+                          <div style={{ height: `${metrics.timeInVeryHigh}%` }} className="bg-[#F29100]" />
+                          <div style={{ height: `${metrics.timeInHigh}%` }} className="bg-[#FCD116]" />
+                          <div style={{ height: `${metrics.timeInTarget}%` }} className="bg-[#72B100]" />
+                          <div style={{ height: `${metrics.timeInLow}%` }} className="bg-[#F04124]" />
+                          <div style={{ height: `${metrics.timeInVeryLow}%` }} className="bg-[#9C0006]" />
+                        </div>
+
+                        {/* Stats Table */}
+                        <div className="flex-1 grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded bg-[#F29100]" />
+                            <span className="text-slate-500">Very High</span>
+                          </div>
+                          <div className="text-right text-slate-800">{metrics.timeInVeryHigh}%</div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded bg-[#FCD116]" />
+                            <span className="text-slate-500">High</span>
+                          </div>
+                          <div className="text-right text-slate-800">{metrics.timeInHigh}%</div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded bg-[#72B100]" />
+                            <span className="text-[#527e00]">In Range</span>
+                          </div>
+                          <div className="text-right text-[#72B100]">{metrics.timeInTarget}%</div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded bg-[#F04124]" />
+                            <span className="text-slate-500">Low</span>
+                          </div>
+                          <div className="text-right text-slate-800">{metrics.timeInLow}%</div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded bg-[#9C0006]" />
+                            <span className="text-slate-500">Very Low</span>
+                          </div>
+                          <div className="text-right text-slate-800">{metrics.timeInVeryLow}%</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
                 {/* Ambulatory Glucose Profile (AGP) chart */}
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                   <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
