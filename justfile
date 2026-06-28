@@ -2,6 +2,9 @@
 # Mirrors the goodnumbers-clean deploy convention.
 # Run from the nightscout-lucid project root.
 
+# Auto-load .env so DEPLOY_SERVER_IP / DEPLOY_SERVER_USER are available
+set dotenv-load
+
 # --- CONFIG (override via .env or shell) ---
 SERVER_IP   := env_var_or_default("DEPLOY_SERVER_IP",   "your-server-ip")
 SERVER_USER := env_var_or_default("DEPLOY_SERVER_USER", "your-username")
