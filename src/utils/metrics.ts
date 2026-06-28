@@ -1,5 +1,5 @@
 import { GlucoseUnit } from './nightscout';
-import type { NightscoutEntry } from './nightscout';
+import type { NightscoutEntry, NightscoutTreatment } from './nightscout';
 
 export interface GlucoseMetrics {
   mean: number;
@@ -432,4 +432,48 @@ export function calculate15MinGlucoseStats(
       mean: convert(stat.mean),
     };
   });
+}
+
+export function deduplicateTreatments(treatments: NightscoutTreatment[]): NightscoutTreatment[] {
+  // Sort by date/timestamp
+  const sorted = [...treatments].sort((a, b) => {
+    const dateA = a.date || new Date(a.created_at).getTime();
+    const dateB = b.date || new Date(b.created_at).getTime();
+    return dateA - dateB;
+  });
+
+  const unique: NightscoutTreatment[] = [];
+
+  for (const item of sorted) {
+    const itemDate = item.date || new Date(item.created_at).getTime();
+
+    // Find if there is an existing event within 1 minute (60000ms)
+    const existingIndex = unique.findIndex(u => {
+      const uDate = u.date || new Date(u.created_at).getTime();
+      return Math.abs(itemDate - uDate) < 60000;
+    });
+
+    if (existingIndex === -1) {
+      // No event within 1 minute, add as new
+      unique.push({ ...item });
+    } else {
+      // Event found within 1 minute, merge them!
+      const existing = unique[existingIndex];
+      
+      // Merge carbs: pick the non-zero/non-null value, or max value
+      if (item.carbs !== undefined && item.carbs !== null) {
+        existing.carbs = Math.max(existing.carbs || 0, item.carbs);
+      }
+      // Merge insulin: pick the non-zero/non-null value, or max value
+      if (item.insulin !== undefined && item.insulin !== null) {
+        existing.insulin = Math.max(existing.insulin || 0, item.insulin);
+      }
+      // Merge notes if needed
+      if (item.notes && !existing.notes?.includes(item.notes)) {
+        existing.notes = existing.notes ? `${existing.notes}; ${item.notes}` : item.notes;
+      }
+    }
+  }
+
+  return unique;
 }

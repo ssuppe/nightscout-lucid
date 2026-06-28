@@ -14,7 +14,8 @@ import {
   calculateGlucoseMetrics, 
   calculateAGPPercentiles, 
   calculateHourlyTIR,
-  calculate15MinGlucoseStats
+  calculate15MinGlucoseStats,
+  deduplicateTreatments
 } from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
 import { AGPChart } from './AGPChart';
@@ -68,7 +69,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       // Fetch treatments and handle failures gracefully
       try {
         const fetchedTreatments = await client.fetchTreatments(from, to);
-        setTreatments(fetchedTreatments);
+        setTreatments(deduplicateTreatments(fetchedTreatments));
       } catch (tErr) {
         console.warn('Failed to load treatments:', tErr);
         setTreatments([]);

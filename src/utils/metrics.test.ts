@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGlucoseMetrics, calculateAGPPercentiles, calculateHourlyTIR, calculate15MinGlucoseStats } from './metrics';
+import { calculateGlucoseMetrics, calculateAGPPercentiles, calculateHourlyTIR, calculate15MinGlucoseStats, deduplicateTreatments } from './metrics';
 import { GlucoseUnit } from './nightscout';
 import type { NightscoutEntry } from './nightscout';
 
@@ -190,6 +190,29 @@ describe('Glucose Metrics Calculations', () => {
 
       // Other bins default to values copied from bin 58
       expect(stats15[0].mean).toBe(120);
+    });
+  });
+
+  describe('Deduplicate Treatments', () => {
+    it('deduplicates overlapping carb and insulin entries correctly', () => {
+      const baseTime = Date.now();
+      const treatments = [
+        { _id: 't1', date: baseTime, created_at: new Date(baseTime).toISOString(), eventType: 'Meal Bolus', carbs: 45, insulin: 5 },
+        { _id: 't2', date: baseTime + 1000, created_at: new Date(baseTime + 1000).toISOString(), eventType: 'Note', carbs: 45, insulin: 0 },
+        { _id: 't3', date: baseTime + 500000, created_at: new Date(baseTime + 500000).toISOString(), eventType: 'Carb Correction', carbs: 20, insulin: 0 },
+        { _id: 't4', date: baseTime + 500100, created_at: new Date(baseTime + 500100).toISOString(), eventType: 'Meal Bolus', carbs: 0, insulin: 3 }
+      ];
+
+      const deduplicated = deduplicateTreatments(treatments);
+      expect(deduplicated.length).toBe(2);
+
+      const first = deduplicated[0];
+      expect(first.carbs).toBe(45);
+      expect(first.insulin).toBe(5);
+
+      const second = deduplicated[1];
+      expect(second.carbs).toBe(20);
+      expect(second.insulin).toBe(3);
     });
   });
 });
