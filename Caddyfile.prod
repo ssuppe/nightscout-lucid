@@ -3,10 +3,10 @@
 # at the /clarity path. It serves the Vite SPA with proper HTML5 fallback.
 
 :80 {
-    root * /srv/clarity
+    root * /srv
 
-    # SPA fallback: unknown paths return index.html so React Router works
-    try_files {path} /index.html
+    # SPA fallback: unknown paths return index.html under the /clarity sub-path
+    try_files {path} /clarity/index.html
 
     file_server
 }
