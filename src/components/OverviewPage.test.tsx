@@ -70,14 +70,14 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText('Average Glucose')).toBeInTheDocument();
+    expect(screen.getByText('Average glucose')).toBeInTheDocument();
     expect(screen.getByText('120')).toBeInTheDocument(); // Mean value
     expect(screen.getAllByText('mg/dL').length).toBeGreaterThan(0); // Units display
 
-    expect(screen.getByText('Glucose Management Indicator (GMI)')).toBeInTheDocument();
+    expect(screen.getByText('GMI')).toBeInTheDocument();
     expect(screen.getByText('6.2%')).toBeInTheDocument(); // GMI value
 
-    expect(screen.getByText('Glucose Variability')).toBeInTheDocument();
+    expect(screen.getByText('Coefficient of Variation')).toBeInTheDocument();
     expect(screen.getAllByText('0%').length).toBeGreaterThan(0); // Standard deviation is 0, so CV is 0
   });
 
@@ -89,7 +89,7 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
-    const btn30 = screen.getByRole('button', { name: '30 Days' });
+    const btn30 = screen.getByRole('button', { name: '30d' });
     fireEvent.click(btn30);
 
     // Should show loading spinner again while fetching 30 days of data
@@ -110,7 +110,7 @@ describe('OverviewPage', () => {
     expect(mockOnDisconnect).toHaveBeenCalled();
   });
 
-  it('renders Overview tab content by default (including hourly glucose and TIR charts)', async () => {
+  it('renders Overview tab content by default (including hourly glucose chart)', async () => {
     setupMockData(120);
     render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
 
@@ -119,7 +119,6 @@ describe('OverviewPage', () => {
     });
 
     expect(screen.getByTestId('mock-hourly-glucose-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('mock-hourly-tir-chart')).toBeInTheDocument();
     expect(screen.queryByTestId('mock-agp-chart')).not.toBeInTheDocument();
   });
 
@@ -131,12 +130,10 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
-    const agpTabBtn = screen.getByRole('button', { name: 'AGP Profile' });
+    const agpTabBtn = screen.getByRole('button', { name: 'AGP' });
     fireEvent.click(agpTabBtn);
 
     expect(screen.getByTestId('mock-agp-chart')).toBeInTheDocument();
-    expect(screen.getByText('Patterns')).toBeInTheDocument();
-    expect(screen.getByText('Patterns not implemented yet')).toBeInTheDocument();
   });
 
   it('renders Daily Logs tab contents with daily row entries when clicked', async () => {
@@ -147,10 +144,10 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
-    const dailyTabBtn = screen.getByRole('button', { name: 'Daily Logs' });
+    const dailyTabBtn = screen.getByRole('button', { name: 'Daily' });
     fireEvent.click(dailyTabBtn);
 
-    expect(screen.getByText('Daily Glucose Logs')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'daily' })).toBeInTheDocument();
     expect(screen.getAllByTestId('mock-daily-mini-chart').length).toBeGreaterThan(0);
   });
 

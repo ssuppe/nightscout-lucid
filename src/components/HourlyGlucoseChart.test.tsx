@@ -27,7 +27,7 @@ describe('HourlyGlucoseChart Component', () => {
   }));
 
   it('renders correctly and initializes echarts', () => {
-    render(<HourlyGlucoseChart hourlyStats={mockStats} days={14} units={GlucoseUnit.MGDL} />);
+    render(<HourlyGlucoseChart hourlyStats={mockStats} units={GlucoseUnit.MGDL} />);
     expect(echarts.init).toHaveBeenCalled();
   });
 });

@@ -5,13 +5,11 @@ import type { Glucose15MinStats } from '../utils/metrics';
 
 interface HourlyGlucoseChartProps {
   hourlyStats: Glucose15MinStats[];
-  days: number;
   units: GlucoseUnit;
 }
 
 export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({ 
   hourlyStats, 
-  days,
   units 
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
@@ -47,64 +45,45 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const yMax = maxVal + cushionMax;
 
     const option: echarts.EChartsOption = {
-      title: {
-        text: 'Hourly Glucose Summary',
-        subtext: `This graph shows your data averaged over ${days} days, with the bar charts for each 15-minute interval of the date range.`,
-        left: 'left',
-        textStyle: {
-          fontSize: 16,
-          fontWeight: 'bold',
-          color: '#0f172a'
-        },
-        subtextStyle: {
-          fontSize: 11,
-          color: '#64748b'
-        }
-      },
+      // Title and Legend are rendered in parent component via HTML
       tooltip: {
         trigger: 'axis',
         axisPointer: {
-          type: 'shadow'
+          type: 'line',
+          lineStyle: {
+            color: '#94a3b8',
+            width: 1,
+            type: 'dashed'
+          }
         },
         formatter: (params: any) => {
           const time = params[0].axisValue;
           const dataIndex = params[0].dataIndex;
           const d = hourlyStats[dataIndex];
           return `
-            <div style="font-family: sans-serif; font-size: 12px; padding: 4px;">
-              <div style="font-weight: bold; margin-bottom: 6px; color: #1e293b;">Time Slot: ${time}</div>
+            <div style="font-family: Inter, sans-serif; font-size: 11px; padding: 6px; line-height: 1.4;">
+              <div style="font-weight: 800; margin-bottom: 4px; color: #1e293b;">Time Slot: ${time}</div>
               <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
                 <span style="color: #64748b;">75th Percentile:</span>
-                <span style="font-weight: bold;">${d.p75} ${units}</span>
+                <span style="font-weight: 700; color: #334155;">${d.p75.toFixed(1)} ${units}</span>
               </div>
               <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 2px;">
-                <span style="color: #1e3a8a; font-weight: bold;">Average (Mean):</span>
-                <span style="font-weight: bold; color: #1d4ed8;">${d.mean} ${units}</span>
+                <span style="color: #2563eb; font-weight: 700;">Average (Mean):</span>
+                <span style="font-weight: 800; color: #1d4ed8;">${d.mean.toFixed(1)} ${units}</span>
               </div>
               <div style="display: flex; justify-content: space-between; gap: 16px;">
                 <span style="color: #64748b;">15th Percentile:</span>
-                <span style="font-weight: bold;">${d.p15} ${units}</span>
+                <span style="font-weight: 700; color: #334155;">${d.p15.toFixed(1)} ${units}</span>
               </div>
             </div>
           `;
         }
       },
-      legend: {
-        bottom: '0%',
-        left: 'center',
-        itemWidth: 12,
-        itemHeight: 12,
-        textStyle: {
-          fontSize: 10,
-          color: '#64748b'
-        },
-        data: ['15th - 75th Percentile Range', 'Average Glucose']
-      },
       grid: {
         left: '4%',
         right: '4%',
-        bottom: '12%',
-        top: '18%',
+        bottom: '8%',
+        top: '6%',
         containLabel: true
       },
       xAxis: {
@@ -117,13 +96,14 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
         },
         axisLabel: {
           color: '#64748b',
-          fontSize: 9,
-          // Show a label every 2 hours (8 intervals of 15 min)
-          interval: (index: number) => index % 8 === 0
+          fontSize: 10,
+          fontWeight: 'bold',
+          // Show label every 3 hours (12 intervals of 15 min)
+          interval: (index: number) => index % 12 === 0
         },
         splitLine: {
           show: true,
-          interval: (index: number) => index % 8 === 0,
+          interval: (index: number) => index % 12 === 0,
           lineStyle: {
             color: '#e2e8f0',
             type: 'dashed'
@@ -136,7 +116,8 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
         max: yMax,
         axisLabel: {
           color: '#64748b',
-          fontSize: 10
+          fontSize: 10,
+          fontWeight: 'bold'
         },
         splitLine: {
           show: true,
@@ -152,7 +133,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
           markArea: {
             silent: true,
             itemStyle: {
-              color: 'rgba(114, 177, 0, 0.04)'
+              color: 'rgba(114, 177, 0, 0.03)'
             },
             data: [
               [
@@ -166,19 +147,19 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
             symbol: 'none',
             lineStyle: {
               color: '#72B100',
-              type: 'dashed',
+              type: 'solid',
               width: 1.5
             },
             label: {
               position: 'end',
-              fontSize: 9,
+              fontSize: 10,
               color: '#72B100',
               fontWeight: 'bold',
               formatter: (params) => `${params.value} ${units}`
             },
             data: [
-              { yAxis: targetMin, name: 'Target Low' },
-              { yAxis: targetMax, name: 'Target High' }
+              { yAxis: targetMin },
+              { yAxis: targetMax }
             ]
           }
         },
@@ -204,7 +185,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
           stack: 'HourlyGlucose',
           data: diffP75,
           color: '#cbd5e1', // soft grey
-          barWidth: '60%',
+          barWidth: '70%',
           itemStyle: {
             borderRadius: [2, 2, 2, 2]
           }
@@ -216,9 +197,9 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
           data: meanData,
           color: '#1d4ed8', // bold blue
           symbol: 'circle',
-          symbolSize: 4,
+          symbolSize: 5,
           lineStyle: {
-            width: 1.5
+            width: 2
           }
         }
       ]
@@ -234,11 +215,11 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [hourlyStats, days, units]);
+  }, [hourlyStats, units]);
 
   return (
     <div className="w-full">
-      <div ref={chartRef} className="h-96 w-full" />
+      <div ref={chartRef} className="h-80 w-full" />
     </div>
   );
 };
