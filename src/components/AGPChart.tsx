@@ -42,10 +42,20 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
 
     // Setup unit specific bounds
     const isMgdl = units === GlucoseUnit.MGDL;
-    const yMin = isMgdl ? 40 : 2.0;
-    const yMax = isMgdl ? 350 : 20.0;
     const targetMin = isMgdl ? 70 : 3.9;
     const targetMax = isMgdl ? 180 : 10.0;
+
+    // Calculate dynamic smart y-axis scale based on data
+    const p10Min = percentiles.length > 0 ? Math.min(...percentiles.map(b => b.p10)) : targetMin;
+    const p90Max = percentiles.length > 0 ? Math.max(...percentiles.map(b => b.p90)) : targetMax;
+    
+    // Always include target bounds, and add a cushion
+    const yMinLimit = isMgdl ? 40 : 2.0;
+    const cushionMin = isMgdl ? 15 : 0.8;
+    const cushionMax = isMgdl ? 25 : 1.5;
+    
+    const yMin = Math.max(yMinLimit, Math.min(targetMin - cushionMin, p10Min - cushionMin));
+    const yMax = Math.max(targetMax + cushionMax, p90Max + cushionMax);
 
     const option: echarts.EChartsOption = {
       title: {

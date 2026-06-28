@@ -31,7 +31,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   preferredUnits,
   onDisconnect
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'daily'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'agp' | 'daily'>('overview');
   const [dateRangeDays, setDateRangeDays] = useState<number>(14);
   const [units, setUnits] = useState<GlucoseUnit>(preferredUnits);
   const [loading, setLoading] = useState<boolean>(true);
@@ -170,6 +170,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 }`}
               >
                 Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('agp')}
+                className={`border-b-2 py-2 text-sm font-bold transition cursor-pointer ${
+                  activeTab === 'agp' 
+                    ? 'border-[#72B100] text-[#72B100]' 
+                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                }`}
+              >
+                AGP Profile
               </button>
               <button
                 onClick={() => setActiveTab('daily')}
@@ -433,7 +443,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   <HourlyTIRChart hourlyData={calculateHourlyTIR(entries)} days={dateRangeDays} />
                 </div>
 
-                {/* Bottom Section: Ambulatory Glucose Profile (AGP) chart */}
+              </div>
+            )}
+
+            {/* AGP Profile Tab */}
+            {activeTab === 'agp' && (
+              <div className="space-y-6">
+                
+                {/* Ambulatory Glucose Profile (AGP) chart */}
                 <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                   <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
                 </div>
@@ -453,7 +470,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </div>
             )}
 
-            {/* Daily Logs Tab Placeholder */}
+            {/* Daily Glucose Logs Tab */}
             {activeTab === 'daily' && (
               <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
                 <Database className="mx-auto h-12 w-12 text-slate-300 mb-4 animate-pulse" />

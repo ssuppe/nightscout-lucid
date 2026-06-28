@@ -95,7 +95,7 @@ describe('OverviewPage', () => {
     expect(mockOnDisconnect).toHaveBeenCalled();
   });
 
-  it('displays all child charts and the patterns card directly on the main Overview page', async () => {
+  it('renders Overview tab content by default (including hourly TIR chart)', async () => {
     setupMockData(120);
     render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
 
@@ -103,8 +103,21 @@ describe('OverviewPage', () => {
       expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
     });
 
-    // Verify all parts of the overview page are rendered on a single page
     expect(screen.getByTestId('mock-hourly-tir-chart')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-agp-chart')).not.toBeInTheDocument();
+  });
+
+  it('renders AGP Profile tab contents when clicked', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const agpTabBtn = screen.getByRole('button', { name: 'AGP Profile' });
+    fireEvent.click(agpTabBtn);
+
     expect(screen.getByTestId('mock-agp-chart')).toBeInTheDocument();
     expect(screen.getByText('Patterns')).toBeInTheDocument();
     expect(screen.getByText('Patterns not implemented yet')).toBeInTheDocument();
