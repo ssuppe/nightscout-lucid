@@ -5,12 +5,11 @@ import {
   TrendingUp, 
   Clock, 
   CheckCircle2, 
-  Database,
   Calendar,
   AlertTriangle
 } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
-import type { NightscoutEntry } from '../utils/nightscout';
+import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
 import { 
   calculateGlucoseMetrics, 
   calculateAGPPercentiles, 
@@ -21,6 +20,7 @@ import type { GlucoseMetrics } from '../utils/metrics';
 import { AGPChart } from './AGPChart';
 import { HourlyTIRChart } from './HourlyTIRChart';
 import { HourlyGlucoseChart } from './HourlyGlucoseChart';
+import { DailyMiniChart } from './DailyMiniChart';
 
 interface OverviewPageProps {
   client: NightscoutClient;
@@ -40,6 +40,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   
   const [entries, setEntries] = useState<NightscoutEntry[]>([]);
+  const [treatments, setTreatments] = useState<NightscoutTreatment[]>([]);
   const [metrics, setMetrics] = useState<GlucoseMetrics | null>(null);
   const [dateRangeStr, setDateRangeStr] = useState<string>('');
 
@@ -63,6 +64,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       setEntries(fetched);
       const computed = calculateGlucoseMetrics(fetched, units);
       setMetrics(computed);
+
+      // Fetch treatments and handle failures gracefully
+      try {
+        const fetchedTreatments = await client.fetchTreatments(from, to);
+        setTreatments(fetchedTreatments);
+      } catch (tErr) {
+        console.warn('Failed to load treatments:', tErr);
+        setTreatments([]);
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to load glucose data from Nightscout');
     } finally {
@@ -93,6 +103,20 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     : 0;
   
   const wearPercentage = Math.min(100, Math.round((avgReadingsPerDay / 288) * 100));
+
+  // Construct list of calendar days for Daily Logs
+  const getDaysArray = () => {
+    const arr = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < dateRangeDays; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      arr.push(d);
+    }
+    return arr;
+  };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-slate-800 font-sans antialiased font-medium">
@@ -479,12 +503,106 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
             {/* Daily Glucose Logs Tab */}
             {activeTab === 'daily' && (
-              <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                <Database className="mx-auto h-12 w-12 text-slate-300 mb-4 animate-pulse" />
-                <h3 className="text-lg font-bold text-slate-800">Daily Glucose Logs</h3>
-                <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
-                  Daily listing of logs and patterns. This is scheduled for the next phase.
-                </p>
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900">Daily Glucose Logs</h2>
+                  <span className="text-xs text-slate-400 font-bold">Showing {dateRangeDays} days</span>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {getDaysArray().map((dayDate, idx) => {
+                    const start = dayDate.getTime();
+                    const end = start + 24 * 60 * 60 * 1000 - 1;
+
+                    // Filter entries and treatments for this day
+                    const dayEntries = entries.filter(e => e.date >= start && e.date <= end);
+                    const dayTreatments = treatments.filter(t => {
+                      const date = t.date || new Date(t.created_at).getTime();
+                      return date >= start && date <= end;
+                    });
+
+                    // Calculations
+                    let mean = '0';
+                    let inRangePercent = 0;
+                    if (dayEntries.length > 0) {
+                      const sum = dayEntries.reduce((acc, e) => acc + e.sgv, 0);
+                      const rawMean = sum / dayEntries.length;
+                      if (units === GlucoseUnit.MMOL) {
+                        mean = (rawMean / 18.018).toFixed(1);
+                      } else {
+                        mean = Math.round(rawMean).toString();
+                      }
+                      const inRangeCount = dayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
+                      inRangePercent = Math.round((inRangeCount / dayEntries.length) * 100);
+                    }
+
+                    const dayCarbs = dayTreatments.reduce((acc, t) => acc + (t.carbs || 0), 0);
+                    const dayInsulin = dayTreatments.reduce((acc, t) => acc + (t.insulin || 0), 0);
+
+                    const dateString = dayDate.toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      month: 'short',
+                      day: 'numeric'
+                    });
+
+                    return (
+                      <div key={idx} className="flex flex-col md:flex-row items-stretch py-5 gap-6">
+                        
+                        {/* Left Column: Date & Stats */}
+                        <div className="w-full md:w-60 flex-shrink-0 flex flex-col justify-center text-left">
+                          <h3 className="text-sm font-extrabold text-slate-900">{dateString}</h3>
+                          {dayEntries.length > 0 ? (
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-500">
+                              <span>Avg: <strong className="text-slate-800">{mean} {units}</strong></span>
+                              <span className={inRangePercent >= 70 ? 'text-[#72B100]' : 'text-amber-600'}>
+                                {inRangePercent}% In Range
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 mt-1 font-semibold">No glucose data</p>
+                          )}
+                          <p className="text-[10px] text-slate-400 mt-0.5">{dayEntries.length} readings</p>
+                        </div>
+
+                        {/* Middle Column: 24h mini line chart */}
+                        <div className="flex-1 min-w-[200px] flex items-center bg-slate-50/50 rounded-lg p-2 border border-slate-100">
+                          {dayEntries.length > 0 ? (
+                            <DailyMiniChart
+                              entries={dayEntries}
+                              treatments={dayTreatments}
+                              units={units}
+                              dayStart={start}
+                            />
+                          ) : (
+                            <div className="w-full py-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-md bg-white">
+                              No glucose records logged for this day
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right Column: Treatment Summary */}
+                        <div className="w-full md:w-36 flex-shrink-0 flex flex-row md:flex-col justify-start md:justify-center items-center md:items-end gap-3 text-xs text-slate-500 font-bold">
+                          {dayCarbs > 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-100 px-2.5 py-1 text-[10px] text-emerald-700">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                              {dayCarbs}g Carbs
+                            </span>
+                          )}
+                          {dayInsulin > 0 && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-[10px] text-blue-700">
+                              <span className="h-2 w-2 rounded-full bg-blue-500" />
+                              {dayInsulin.toFixed(1)} U Insulin
+                            </span>
+                          )}
+                          {dayCarbs === 0 && dayInsulin === 0 && (
+                            <span className="text-slate-300 font-normal italic">No events</span>
+                          )}
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

@@ -13,6 +13,9 @@ vi.mock('./HourlyTIRChart', () => ({
 vi.mock('./HourlyGlucoseChart', () => ({
   HourlyGlucoseChart: () => <div data-testid="mock-hourly-glucose-chart" />,
 }));
+vi.mock('./DailyMiniChart', () => ({
+  DailyMiniChart: () => <div data-testid="mock-daily-mini-chart" />,
+}));
 
 // Mock NightscoutClient
 const mockClient = {
@@ -125,5 +128,20 @@ describe('OverviewPage', () => {
     expect(screen.getByTestId('mock-agp-chart')).toBeInTheDocument();
     expect(screen.getByText('Patterns')).toBeInTheDocument();
     expect(screen.getByText('Patterns not implemented yet')).toBeInTheDocument();
+  });
+
+  it('renders Daily Logs tab contents with daily row entries when clicked', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const dailyTabBtn = screen.getByRole('button', { name: 'Daily Logs' });
+    fireEvent.click(dailyTabBtn);
+
+    expect(screen.getByText('Daily Glucose Logs')).toBeInTheDocument();
+    expect(screen.getAllByTestId('mock-daily-mini-chart').length).toBeGreaterThan(0);
   });
 });
