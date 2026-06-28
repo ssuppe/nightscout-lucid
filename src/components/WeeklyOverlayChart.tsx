@@ -21,6 +21,67 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
+  // Group week's entries by calendar day (local timezone) to find which match the filters
+  const getFilteredEntries = () => {
+    const dayGroups: Record<string, NightscoutEntry[]> = {};
+    entries.forEach(e => {
+      const dateStr = new Date(e.date).toDateString();
+      if (!dayGroups[dateStr]) {
+        dayGroups[dateStr] = [];
+      }
+      dayGroups[dateStr].push(e);
+    });
+
+    const filtered: NightscoutEntry[] = [];
+    Object.keys(dayGroups).forEach(dayKey => {
+      const dayEntries = dayGroups[dayKey];
+      if (dayEntries.length === 0) return;
+
+      const dateObj = new Date(dayEntries[0].date);
+      const dayOfWeek = dateObj.getDay();
+
+      if (!selectedDays.includes(dayOfWeek)) return;
+
+      const hasLow = dayEntries.some(e => e.sgv < 70);
+      const hasHigh = dayEntries.some(e => e.sgv > 180);
+
+      const matchesEvent = 
+        eventFilter === 'all' ||
+        (eventFilter === 'lows' && hasLow) ||
+        (eventFilter === 'highs' && hasHigh);
+
+      if (matchesEvent) {
+        filtered.push(...dayEntries);
+      }
+    });
+    return filtered;
+  };
+
+  const filteredEntries = getFilteredEntries();
+  const isMgdl = units === GlucoseUnit.MGDL;
+
+  let avgStr = '-';
+  let tirStr = '-';
+  let sdStr = '-';
+
+  if (filteredEntries.length > 0) {
+    const sum = filteredEntries.reduce((acc, e) => acc + e.sgv, 0);
+    const mean = sum / filteredEntries.length;
+    const meanConverted = isMgdl ? mean : mean / 18.018;
+    // Force 1 decimal place for mmol/L, integer for mg/dL
+    avgStr = `${meanConverted.toFixed(isMgdl ? 0 : 1)} ${units}`;
+
+    const inRange = filteredEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
+    const tirPct = Math.round((inRange / filteredEntries.length) * 100);
+    tirStr = `${tirPct}%`;
+
+    const sqDiffs = filteredEntries.map(e => Math.pow(e.sgv - mean, 2));
+    const variance = sqDiffs.reduce((acc, v) => acc + v, 0) / filteredEntries.length;
+    const stdDev = Math.sqrt(variance);
+    const stdDevConverted = isMgdl ? stdDev : stdDev / 18.018;
+    sdStr = `± ${stdDevConverted.toFixed(isMgdl ? 0 : 1)} ${units}`;
+  }
+
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -29,8 +90,6 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
     }
 
     const chart = chartInstance.current;
-
-    const isMgdl = units === GlucoseUnit.MGDL;
     const targetMin = isMgdl ? 70 : 3.9;
     const targetMax = isMgdl ? 180 : 10.0;
     const conversion = (val: number) => isMgdl ? val : val / 18.018;
@@ -156,13 +215,7 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
 
     const option: echarts.EChartsOption = {
       title: {
-        text: weekLabel,
-        left: 'left',
-        textStyle: {
-          fontSize: 14,
-          fontWeight: 'bold',
-          color: '#1e293b'
-        }
+        show: false
       },
       tooltip: {
         trigger: 'axis',
@@ -207,7 +260,7 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
         left: '4%',
         right: '4%',
         bottom: '10%',
-        top: '15%',
+        top: '8%',
         containLabel: true
       },
       xAxis: {
@@ -279,10 +332,36 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [entries, units, selectedDays, eventFilter, weekLabel]);
+  }, [entries, units, selectedDays, eventFilter, weekLabel, isMgdl]);
 
   return (
-    <div className="w-full">
+    <div className="w-full text-left">
+      {/* Dexcom Clarity Styled Weekly Statistics Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 mb-4 gap-2">
+        <h4 className="text-sm font-extrabold text-slate-800">{weekLabel}</h4>
+        
+        {filteredEntries.length > 0 ? (
+          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
+            <div>
+              <span>Avg: </span>
+              <span className="text-slate-800 font-black">{avgStr}</span>
+            </div>
+            <div className="w-px h-3 bg-slate-200" />
+            <div>
+              <span>TIR: </span>
+              <span className="text-[#72B100] font-black">{tirStr}</span>
+            </div>
+            <div className="w-px h-3 bg-slate-200" />
+            <div>
+              <span>SD: </span>
+              <span className="text-slate-800 font-black">{sdStr}</span>
+            </div>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400 font-semibold italic">No matching data</span>
+        )}
+      </div>
+
       <div ref={chartRef} className="h-80 w-full" />
     </div>
   );
