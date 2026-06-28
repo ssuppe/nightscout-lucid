@@ -1,0 +1,12 @@
+# Caddyfile.prod — internal Caddy config for the nightscout-lucid container
+# This container listens on :80 and is proxied from the goodnumbers Caddy
+# at the /clarity path. It serves the Vite SPA with proper HTML5 fallback.
+
+:80 {
+    root * /srv/clarity
+
+    # SPA fallback: unknown paths return index.html so React Router works
+    try_files {path} /index.html
+
+    file_server
+}
