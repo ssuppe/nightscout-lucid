@@ -2,15 +2,13 @@ import React from 'react';
 import { GlucoseUnit } from '../utils/nightscout';
 import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
 
-interface DailyStatsTableProps {
-  days: Date[];
+interface HourlyStatsTableProps {
   entries: NightscoutEntry[];
   treatments: NightscoutTreatment[];
   units: GlucoseUnit;
 }
 
-export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
-  days,
+export const HourlyStatsTable: React.FC<HourlyStatsTableProps> = ({
   entries,
   treatments,
   units
@@ -18,12 +16,15 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
   const isMgdl = units === GlucoseUnit.MGDL;
   const conversion = (val: number) => isMgdl ? val : val / 18.018;
 
+  // Generate 24 hour blocks
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[950px] border-collapse text-left text-xs font-semibold text-slate-700">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-            <th className="px-3 py-3">Date</th>
+            <th className="px-3 py-3">Hour Range</th>
             <th className="px-3 py-3 text-right">Avg Glucose</th>
             <th className="px-3 py-3 text-right">SD (CV)</th>
             <th className="px-3 py-3 text-right text-orange-600">% Very High</th>
@@ -31,25 +32,25 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
             <th className="px-3 py-3 text-right text-[#72B100]">% In Range</th>
             <th className="px-3 py-3 text-right text-red-600">% Low</th>
             <th className="px-3 py-3 text-right text-[#9C0006]">% Very Low</th>
-            <th className="px-3 py-3 text-right">Carbs</th>
-            <th className="px-3 py-3 text-right">Insulin</th>
-            <th className="px-3 py-3 text-right">Readings (Wear %)</th>
+            <th className="px-3 py-3 text-right">Total Carbs</th>
+            <th className="px-3 py-3 text-right">Total Insulin</th>
+            <th className="px-3 py-3 text-right">Readings Count</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {days.map((dayDate, idx) => {
-            const normalized = new Date(dayDate);
-            normalized.setHours(0, 0, 0, 0);
-            const start = normalized.getTime();
-            const end = start + 24 * 60 * 60 * 1000 - 1;
-
-            const dayEntries = entries.filter(e => e.date >= start && e.date <= end);
-            const dayTreatments = treatments.filter(t => {
-              const date = t.date || new Date(t.created_at).getTime();
-              return date >= start && date <= end;
+          {hours.map((hour) => {
+            // Filter readings matching this hour of the day
+            const hourEntries = entries.filter(e => {
+              const d = new Date(e.date);
+              return d.getHours() === hour;
             });
 
-            // Calculate metrics for this day
+            // Filter treatments matching this hour of the day
+            const hourTreatments = treatments.filter(t => {
+              const d = new Date(t.date || t.created_at);
+              return d.getHours() === hour;
+            });
+
             let meanStr = '-';
             let sdCvStr = '-';
             let veryHighPct = 0;
@@ -57,48 +58,42 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
             let inRangePct = 0;
             let lowPct = 0;
             let veryLowPct = 0;
-            let hasGlucose = dayEntries.length > 0;
+            const hasGlucose = hourEntries.length > 0;
 
             if (hasGlucose) {
-              const sum = dayEntries.reduce((acc, e) => acc + e.sgv, 0);
-              const meanVal = sum / dayEntries.length;
+              const sum = hourEntries.reduce((acc, e) => acc + e.sgv, 0);
+              const meanVal = sum / hourEntries.length;
               meanStr = `${conversion(meanVal).toFixed(isMgdl ? 0 : 1)} ${units}`;
 
-              // Standard deviation
-              const squareDiffs = dayEntries.map(e => Math.pow(e.sgv - meanVal, 2));
-              const avgSquareDiff = squareDiffs.reduce((acc, val) => acc + val, 0) / dayEntries.length;
+              const squareDiffs = hourEntries.map(e => Math.pow(e.sgv - meanVal, 2));
+              const avgSquareDiff = squareDiffs.reduce((acc, val) => acc + val, 0) / hourEntries.length;
               const sdVal = Math.sqrt(avgSquareDiff);
               const cvVal = (sdVal / meanVal) * 100;
 
               sdCvStr = `±${conversion(sdVal).toFixed(isMgdl ? 0 : 1)} (${cvVal.toFixed(0)}%)`;
 
-              // TIR splits
-              const veryHighCount = dayEntries.filter(e => e.sgv > 250).length;
-              const highCount = dayEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length;
-              const inRangeCount = dayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
-              const lowCount = dayEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length;
-              const veryLowCount = dayEntries.filter(e => e.sgv < 54).length;
+              const veryHighCount = hourEntries.filter(e => e.sgv > 250).length;
+              const highCount = hourEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length;
+              const inRangeCount = hourEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
+              const lowCount = hourEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length;
+              const veryLowCount = hourEntries.filter(e => e.sgv < 54).length;
 
-              veryHighPct = Math.round((veryHighCount / dayEntries.length) * 100);
-              highPct = Math.round((highCount / dayEntries.length) * 100);
-              inRangePct = Math.round((inRangeCount / dayEntries.length) * 100);
-              lowPct = Math.round((lowCount / dayEntries.length) * 100);
-              veryLowPct = Math.round((veryLowCount / dayEntries.length) * 100);
+              veryHighPct = Math.round((veryHighCount / hourEntries.length) * 100);
+              highPct = Math.round((highCount / hourEntries.length) * 100);
+              inRangePct = Math.round((inRangeCount / hourEntries.length) * 100);
+              lowPct = Math.round((lowCount / hourEntries.length) * 100);
+              veryLowPct = Math.round((veryLowCount / hourEntries.length) * 100);
             }
 
-            const dayCarbs = dayTreatments.reduce((acc, t) => acc + (t.carbs || 0), 0);
-            const dayInsulin = dayTreatments.reduce((acc, t) => acc + (t.insulin || 0), 0);
-            const wearPct = Math.min(100, Math.round((dayEntries.length / 288) * 100));
+            const totalCarbs = hourTreatments.reduce((acc, t) => acc + (t.carbs || 0), 0);
+            const totalInsulin = hourTreatments.reduce((acc, t) => acc + (t.insulin || 0), 0);
 
-            const formattedDate = dayDate.toLocaleDateString(undefined, {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric'
-            });
+            const nextHour = (hour + 1) % 24;
+            const hourLabel = `${hour.toString().padStart(2, '0')}:00 - ${nextHour.toString().padStart(2, '0')}:00 (${hour}-${hour + 1})`;
 
             return (
-              <tr key={idx} className="hover:bg-slate-50/50 transition">
-                <td className="px-3 py-3 font-bold text-slate-900">{formattedDate}</td>
+              <tr key={hour} className="hover:bg-slate-50/50 transition">
+                <td className="px-3 py-3 font-bold text-slate-900">{hourLabel}</td>
                 <td className="px-3 py-3 text-right font-bold text-slate-800">{meanStr}</td>
                 <td className="px-3 py-3 text-right text-slate-500">{sdCvStr}</td>
                 <td className="px-3 py-3 text-right text-orange-600 font-bold">
@@ -117,14 +112,12 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
                   {hasGlucose ? `${veryLowPct}%` : '-'}
                 </td>
                 <td className="px-3 py-3 text-right text-emerald-600 font-bold">
-                  {dayCarbs > 0 ? `${dayCarbs}g` : '-'}
+                  {totalCarbs > 0 ? `${totalCarbs}g` : '-'}
                 </td>
                 <td className="px-3 py-3 text-right text-blue-600 font-bold">
-                  {dayInsulin > 0 ? `${dayInsulin.toFixed(1)} U` : '-'}
+                  {totalInsulin > 0 ? `${totalInsulin.toFixed(1)} U` : '-'}
                 </td>
-                <td className="px-3 py-3 text-right text-slate-500">
-                  {dayEntries.length} <span className="text-[10px] text-slate-400">({wearPct}%)</span>
-                </td>
+                <td className="px-3 py-3 text-right text-slate-500">{hourEntries.length}</td>
               </tr>
             );
           })}

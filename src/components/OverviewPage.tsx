@@ -24,6 +24,7 @@ import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 import { DailyMiniChart } from './DailyMiniChart';
 import { WeeklyOverlayChart } from './WeeklyOverlayChart';
 import { DailyStatsTable } from './DailyStatsTable';
+import { HourlyStatsTable } from './HourlyStatsTable';
 
 interface OverviewPageProps {
   client: NightscoutClient;
@@ -50,6 +51,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   // Overlay Filters States
   const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [eventFilter, setEventFilter] = useState<'all' | 'highs' | 'lows'>('all');
+
+  // Statistics Sub-tab State
+  const [statsSubTab, setStatsSubTab] = useState<'daily' | 'hourly'>('daily');
 
   const loadData = async (days: number) => {
     setLoading(true);
@@ -882,16 +886,54 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             {/* Statistics Tab */}
             {activeTab === 'stats' && (
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
-                <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h2 className="text-lg font-bold tracking-tight text-slate-900">Daily Statistics Table</h2>
-                  <span className="text-xs text-slate-400 font-bold">Showing {dateRangeDays} days</span>
+                
+                {/* Title & Sub-tab selectors */}
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold tracking-tight text-slate-900">Glucose & Insulin Statistics</h2>
+                    <p className="text-xs text-slate-400 font-medium">Aggregated logs for {dateRangeStr}</p>
+                  </div>
+                  
+                  {/* Daily vs Hourly Toggles */}
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 self-start sm:self-center">
+                    <button
+                      onClick={() => setStatsSubTab('daily')}
+                      className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                        statsSubTab === 'daily'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Daily Table
+                    </button>
+                    <button
+                      onClick={() => setStatsSubTab('hourly')}
+                      className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition cursor-pointer ${
+                        statsSubTab === 'hourly'
+                          ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Hourly Table
+                    </button>
+                  </div>
                 </div>
-                <DailyStatsTable
-                  days={getDaysArray()}
-                  entries={entries}
-                  treatments={treatments}
-                  units={units}
-                />
+
+                {statsSubTab === 'daily' ? (
+                  <DailyStatsTable
+                    days={getDaysArray()}
+                    entries={entries}
+                    treatments={treatments}
+                    units={units}
+                  />
+                ) : (
+                  <HourlyStatsTable
+                    entries={entries}
+                    treatments={treatments}
+                    units={units}
+                  />
+                )}
+
               </div>
             )}
 

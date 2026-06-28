@@ -22,6 +22,9 @@ vi.mock('./WeeklyOverlayChart', () => ({
 vi.mock('./DailyStatsTable', () => ({
   DailyStatsTable: () => <div data-testid="mock-daily-stats-table" />,
 }));
+vi.mock('./HourlyStatsTable', () => ({
+  HourlyStatsTable: () => <div data-testid="mock-hourly-stats-table" />,
+}));
 
 // Mock NightscoutClient
 const mockClient = {
@@ -178,7 +181,11 @@ describe('OverviewPage', () => {
     const statsTabBtn = screen.getByRole('button', { name: 'Statistics' });
     fireEvent.click(statsTabBtn);
 
-    expect(screen.getByText('Daily Statistics Table')).toBeInTheDocument();
+    expect(screen.getByText('Daily Table')).toBeInTheDocument();
     expect(screen.getByTestId('mock-daily-stats-table')).toBeInTheDocument();
+
+    const hourlySubTabBtn = screen.getByRole('button', { name: 'Hourly Table' });
+    fireEvent.click(hourlySubTabBtn);
+    expect(screen.getByTestId('mock-hourly-stats-table')).toBeInTheDocument();
   });
 });
