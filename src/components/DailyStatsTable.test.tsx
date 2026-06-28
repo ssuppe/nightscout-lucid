@@ -65,5 +65,10 @@ describe('DailyStatsTable Component', () => {
     const stdDevCell = screen.getByText('Std. Dev.');
     const stdDevRow = stdDevCell.closest('tr');
     expect(stdDevRow).toHaveClass('border-b-2');
+
+    // Verify vertical column dividers exist on Metric labels
+    const metricHeader = screen.getByText('Metric');
+    expect(metricHeader).toHaveClass('border-r');
+    expect(veryLowCell.closest('td')).toHaveClass('border-r');
   });
 });

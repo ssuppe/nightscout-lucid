@@ -207,17 +207,17 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
       <table className="w-full text-xs font-bold text-slate-600 border-collapse min-w-[700px]">
         <thead>
           <tr className="border-b border-slate-200 text-slate-400 font-extrabold text-[10px] uppercase tracking-wider">
-            <th className="py-3 text-left font-black w-40">Metric</th>
+            <th className="py-3 text-left font-black w-40 border-r border-slate-200 pr-4">Metric</th>
             {columnsData.map((col, idx) => (
               <th key={idx} className="py-3 text-center w-20 font-black">{col.label}</th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 text-slate-700">
+        <tbody className="text-slate-700">
           
           {/* TIR Resistor Row */}
-          <tr>
-            <td className="py-4 text-slate-500 font-bold">Time in Range</td>
+          <tr className="border-b border-slate-200">
+            <td className="py-4 text-slate-500 font-bold border-r border-slate-200 pr-4">Time in Range</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-4 text-center">
                 {col.count > 0 ? (
@@ -237,7 +237,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* % Very High */}
           <tr>
-            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold">
+            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold border-r border-slate-200 pr-4">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#F29100] shrink-0" />
               <span>% Very High</span>
             </td>
@@ -250,7 +250,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* % High */}
           <tr>
-            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold">
+            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold border-r border-slate-200 pr-4">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#FCD116] shrink-0" />
               <span>% High</span>
             </td>
@@ -263,7 +263,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* % In Range */}
           <tr className="bg-[#72B100]/5">
-            <td className="py-2.5 flex items-center gap-2 text-[#527e00] font-black">
+            <td className="py-2.5 flex items-center gap-2 text-[#527e00] font-black border-r border-slate-200 pr-4">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#72B100] shrink-0" />
               <span>% In Range</span>
             </td>
@@ -276,7 +276,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* % Low */}
           <tr>
-            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold">
+            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold border-r border-slate-200 pr-4">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#F04124] shrink-0" />
               <span>% Low</span>
             </td>
@@ -289,7 +289,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* % Very Low */}
           <tr className="border-b-2 border-slate-400/80">
-            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold">
+            <td className="py-2.5 flex items-center gap-2 text-slate-500 font-bold border-r border-slate-200 pr-4">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#9C0006] shrink-0" />
               <span>% Very Low</span>
             </td>
@@ -302,7 +302,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* # Readings */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold"># Readings</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4"># Readings</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-black">
                 {col.count > 0 ? col.count : '-'}
@@ -312,7 +312,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Min */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">Min</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">Min</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.min}
@@ -322,7 +322,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Max */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">Max</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">Max</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.max}
@@ -332,7 +332,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Mean */}
           <tr className="bg-slate-50/50">
-            <td className="py-2.5 text-slate-800 font-black">Mean</td>
+            <td className="py-2.5 text-slate-800 font-black border-r border-slate-200 pr-4">Mean</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-900 font-black text-xs">
                 {col.mean}
@@ -342,7 +342,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Std. Dev. */}
           <tr className="border-b-2 border-slate-400/80">
-            <td className="py-2.5 text-slate-400 font-bold">Std. Dev.</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">Std. Dev.</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.stdDev}
@@ -352,7 +352,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Quartile 25 */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">Quartile 25</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">Quartile 25</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.q1}
@@ -362,7 +362,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Median */}
           <tr className="bg-slate-50/50">
-            <td className="py-2.5 text-slate-800 font-black">Median</td>
+            <td className="py-2.5 text-slate-800 font-black border-r border-slate-200 pr-4">Median</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-900 font-black">
                 {col.median}
@@ -372,7 +372,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* Quartile 75 */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">Quartile 75</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">Quartile 75</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.q3}
@@ -382,7 +382,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* IQR */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">IQR</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">IQR</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.iqr}
@@ -392,7 +392,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* IQ Std. Dev. */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">IQ Std. Dev.</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">IQ Std. Dev.</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.iqStdDev}
@@ -402,7 +402,7 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
 
           {/* SD Mean */}
           <tr>
-            <td className="py-2.5 text-slate-400 font-bold">SD Mean</td>
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">SD Mean</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.sdMean}
@@ -411,8 +411,8 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
           </tr>
 
           {/* %CV */}
-          <tr>
-            <td className="py-2.5 text-slate-400 font-bold">%CV</td>
+          <tr className="border-b border-slate-300">
+            <td className="py-2.5 text-slate-400 font-bold border-r border-slate-200 pr-4">%CV</td>
             {columnsData.map((col, idx) => (
               <td key={idx} className="py-2.5 text-center text-slate-800 font-bold">
                 {col.cv}
