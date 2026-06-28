@@ -1,18 +1,16 @@
 import React from 'react';
 import { GlucoseUnit } from '../utils/nightscout';
-import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
+import type { NightscoutEntry } from '../utils/nightscout';
 
 interface DailyStatsTableProps {
   days: Date[];
   entries: NightscoutEntry[];
-  treatments: NightscoutTreatment[];
   units: GlucoseUnit;
 }
 
 export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
   days,
   entries,
-  treatments,
   units
 }) => {
   const isMgdl = units === GlucoseUnit.MGDL;
@@ -31,8 +29,6 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
             <th className="px-3 py-3 text-right text-[#72B100]">% In Range</th>
             <th className="px-3 py-3 text-right text-red-600">% Low</th>
             <th className="px-3 py-3 text-right text-[#9C0006]">% Very Low</th>
-            <th className="px-3 py-3 text-right">Carbs</th>
-            <th className="px-3 py-3 text-right">Insulin</th>
             <th className="px-3 py-3 text-right">Readings (Wear %)</th>
           </tr>
         </thead>
@@ -44,10 +40,6 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
             const end = start + 24 * 60 * 60 * 1000 - 1;
 
             const dayEntries = entries.filter(e => e.date >= start && e.date <= end);
-            const dayTreatments = treatments.filter(t => {
-              const date = t.date || new Date(t.created_at).getTime();
-              return date >= start && date <= end;
-            });
 
             // Calculate metrics for this day
             let meanStr = '-';
@@ -86,8 +78,6 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
               veryLowPct = Math.round((veryLowCount / dayEntries.length) * 100);
             }
 
-            const dayCarbs = dayTreatments.reduce((acc, t) => acc + (t.carbs || 0), 0);
-            const dayInsulin = dayTreatments.reduce((acc, t) => acc + (t.insulin || 0), 0);
             const wearPct = Math.min(100, Math.round((dayEntries.length / 288) * 100));
 
             const formattedDate = dayDate.toLocaleDateString(undefined, {
@@ -115,12 +105,6 @@ export const DailyStatsTable: React.FC<DailyStatsTableProps> = ({
                 </td>
                 <td className="px-3 py-3 text-right text-[#9C0006] font-bold">
                   {hasGlucose ? `${veryLowPct}%` : '-'}
-                </td>
-                <td className="px-3 py-3 text-right text-emerald-600 font-bold">
-                  {dayCarbs > 0 ? `${dayCarbs}g` : '-'}
-                </td>
-                <td className="px-3 py-3 text-right text-blue-600 font-bold">
-                  {dayInsulin > 0 ? `${dayInsulin.toFixed(1)} U` : '-'}
                 </td>
                 <td className="px-3 py-3 text-right text-slate-500">
                   {dayEntries.length} <span className="text-[10px] text-slate-400">({wearPct}%)</span>

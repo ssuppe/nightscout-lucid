@@ -923,13 +923,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   <DailyStatsTable
                     days={getDaysArray()}
                     entries={entries}
-                    treatments={treatments}
                     units={units}
                   />
                 ) : (
                   <HourlyStatsTable
                     entries={entries}
-                    treatments={treatments}
                     units={units}
                   />
                 )}

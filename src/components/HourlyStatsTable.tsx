@@ -1,16 +1,14 @@
 import React from 'react';
 import { GlucoseUnit } from '../utils/nightscout';
-import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
+import type { NightscoutEntry } from '../utils/nightscout';
 
 interface HourlyStatsTableProps {
   entries: NightscoutEntry[];
-  treatments: NightscoutTreatment[];
   units: GlucoseUnit;
 }
 
 export const HourlyStatsTable: React.FC<HourlyStatsTableProps> = ({
   entries,
-  treatments,
   units
 }) => {
   const isMgdl = units === GlucoseUnit.MGDL;
@@ -32,8 +30,6 @@ export const HourlyStatsTable: React.FC<HourlyStatsTableProps> = ({
             <th className="px-3 py-3 text-right text-[#72B100]">% In Range</th>
             <th className="px-3 py-3 text-right text-red-600">% Low</th>
             <th className="px-3 py-3 text-right text-[#9C0006]">% Very Low</th>
-            <th className="px-3 py-3 text-right">Total Carbs</th>
-            <th className="px-3 py-3 text-right">Total Insulin</th>
             <th className="px-3 py-3 text-right">Readings Count</th>
           </tr>
         </thead>
@@ -45,11 +41,6 @@ export const HourlyStatsTable: React.FC<HourlyStatsTableProps> = ({
               return d.getHours() === hour;
             });
 
-            // Filter treatments matching this hour of the day
-            const hourTreatments = treatments.filter(t => {
-              const d = new Date(t.date || t.created_at);
-              return d.getHours() === hour;
-            });
 
             let meanStr = '-';
             let sdCvStr = '-';
@@ -85,8 +76,7 @@ export const HourlyStatsTable: React.FC<HourlyStatsTableProps> = ({
               veryLowPct = Math.round((veryLowCount / hourEntries.length) * 100);
             }
 
-            const totalCarbs = hourTreatments.reduce((acc, t) => acc + (t.carbs || 0), 0);
-            const totalInsulin = hourTreatments.reduce((acc, t) => acc + (t.insulin || 0), 0);
+
 
             const nextHour = (hour + 1) % 24;
             const hourLabel = `${hour.toString().padStart(2, '0')}:00 - ${nextHour.toString().padStart(2, '0')}:00 (${hour}-${hour + 1})`;
@@ -110,12 +100,6 @@ export const HourlyStatsTable: React.FC<HourlyStatsTableProps> = ({
                 </td>
                 <td className="px-3 py-3 text-right text-[#9C0006] font-bold">
                   {hasGlucose ? `${veryLowPct}%` : '-'}
-                </td>
-                <td className="px-3 py-3 text-right text-emerald-600 font-bold">
-                  {totalCarbs > 0 ? `${totalCarbs}g` : '-'}
-                </td>
-                <td className="px-3 py-3 text-right text-blue-600 font-bold">
-                  {totalInsulin > 0 ? `${totalInsulin.toFixed(1)} U` : '-'}
                 </td>
                 <td className="px-3 py-3 text-right text-slate-500">{hourEntries.length}</td>
               </tr>

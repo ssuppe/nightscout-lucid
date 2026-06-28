@@ -8,15 +8,11 @@ describe('HourlyStatsTable Component', () => {
     { _id: 'e1', date: new Date().setHours(1, 30), sgv: 120, type: 'sgv' },
     { _id: 'e2', date: new Date().setHours(1, 45), sgv: 185, type: 'sgv' }
   ];
-  const mockTreatments = [
-    { _id: 't1', date: new Date().setHours(1, 15), created_at: new Date().toISOString(), eventType: 'Meal Bolus', carbs: 60, insulin: 6 }
-  ];
 
   it('renders table headers and matching 24 hour rows', () => {
     render(
       <HourlyStatsTable
         entries={mockEntries}
-        treatments={mockTreatments}
         units={GlucoseUnit.MGDL}
       />
     );
@@ -24,11 +20,12 @@ describe('HourlyStatsTable Component', () => {
     // Headers
     expect(screen.getByText('Hour Range')).toBeInTheDocument();
     expect(screen.getByText('% In Range')).toBeInTheDocument();
-    expect(screen.getByText('Total Carbs')).toBeInTheDocument();
-    expect(screen.getByText('Total Insulin')).toBeInTheDocument();
+    expect(screen.getByText('% Very High')).toBeInTheDocument();
+    expect(screen.getByText('% High')).toBeInTheDocument();
+    expect(screen.getByText('% Low')).toBeInTheDocument();
+    expect(screen.getByText('% Very Low')).toBeInTheDocument();
 
     // Data Row (1-2 hour range)
     expect(screen.getByText('01:00 - 02:00 (1-2)')).toBeInTheDocument();
-    expect(screen.getByText('60g')).toBeInTheDocument();
   });
 });

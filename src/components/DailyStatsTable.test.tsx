@@ -8,9 +8,6 @@ describe('DailyStatsTable Component', () => {
     { _id: 'e1', date: Date.now(), sgv: 120, type: 'sgv' },
     { _id: 'e2', date: Date.now() - 1000 * 60 * 10, sgv: 185, type: 'sgv' }
   ];
-  const mockTreatments = [
-    { _id: 't1', date: Date.now(), created_at: new Date().toISOString(), eventType: 'Meal Bolus', carbs: 60, insulin: 6 }
-  ];
 
   it('renders table headers and matching daily rows', () => {
     const days = [new Date()];
@@ -18,7 +15,6 @@ describe('DailyStatsTable Component', () => {
       <DailyStatsTable
         days={days}
         entries={mockEntries}
-        treatments={mockTreatments}
         units={GlucoseUnit.MGDL}
       />
     );
@@ -30,11 +26,8 @@ describe('DailyStatsTable Component', () => {
     expect(screen.getByText('% High')).toBeInTheDocument();
     expect(screen.getByText('% Low')).toBeInTheDocument();
     expect(screen.getByText('% Very Low')).toBeInTheDocument();
-    expect(screen.getByText('Carbs')).toBeInTheDocument();
-    expect(screen.getByText('Insulin')).toBeInTheDocument();
 
     // Data Row
-    expect(screen.getByText('60g')).toBeInTheDocument();
-    expect(screen.getByText('6.0 U')).toBeInTheDocument();
+    expect(screen.getByText('153 mg/dL')).toBeInTheDocument();
   });
 });
