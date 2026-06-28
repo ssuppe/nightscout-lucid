@@ -929,12 +929,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               {activeTab === 'agp' && (
                 <div className="bg-white border border-slate-200 shadow-sm p-8 rounded-xl max-w-5xl mx-auto space-y-8 text-left font-sans">
                   
-                  {/* captūrAGP Report Header */}
+                  {/* AGP Report Header */}
                   <div className="border-b-2 border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-baseline gap-2">
                       <span className="text-[#72B100] font-black text-2xl tracking-tight uppercase">dexcom</span>
                       <span className="text-slate-300 font-light text-2xl">|</span>
-                      <span className="text-[#004B87] font-black text-lg tracking-tight">captūrAGP™</span>
+                      <span className="text-[#004B87] font-black text-lg tracking-tight">AGP Report</span>
                     </div>
                     <div className="text-left sm:text-right">
                       <div className="text-sm font-black text-slate-800">Steven Suppe</div>
