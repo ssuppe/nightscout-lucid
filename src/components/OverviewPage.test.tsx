@@ -460,6 +460,42 @@ describe('OverviewPage', () => {
     const readingsCard = screen.getByText('Total CGM Readings').closest('div');
     expect(readingsCard).toHaveTextContent('1');
   });
+
+  it('correctly splits entries between Comparison Period (A) and Reference Period (B) in the Compare tab', async () => {
+    const now = Date.now();
+    const entriesA = Array.from({ length: 10 }, (_, i) => ({
+      _id: `a-${i}`,
+      date: now - i * 1 * 24 * 60 * 60 * 1000, // last 10 days (in Period A)
+      sgv: 100,
+      type: 'sgv',
+    }));
+    const entriesB = Array.from({ length: 10 }, (_, i) => ({
+      _id: `b-${i}`,
+      date: now - (i + 15) * 1 * 24 * 60 * 60 * 1000, // 15-25 days ago (in Period B)
+      sgv: 200,
+      type: 'sgv',
+    }));
+
+    vi.mocked(mockClient.fetchEntries).mockResolvedValue([...entriesA, ...entriesB]);
+    vi.mocked(mockClient.fetchTreatments).mockResolvedValue([]);
+
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const compareTabBtn = screen.getByRole('button', { name: 'Compare' });
+    fireEvent.click(compareTabBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('compare-page-content')).toBeInTheDocument();
+    });
+
+    // Comparison Period (A) should show mean 100 mg/dL, Reference Period (B) should show mean 200 mg/dL
+    expect(screen.getByText('100 mg/dL')).toBeInTheDocument();
+    expect(screen.getByText('200 mg/dL')).toBeInTheDocument();
+  });
 });
 
 
