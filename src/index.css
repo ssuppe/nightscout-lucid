@@ -1,1 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+
 @import "tailwindcss";
+
+@theme {
+  --font-sans: 'Roboto', 'Helvetica Neue', sans-serif;
+}
+
+body, button, html, input, select, textarea, a, div, span {
+    font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #333333;
+}
