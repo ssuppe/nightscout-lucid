@@ -33,8 +33,8 @@ build:
 
 # Run the production container locally to verify
 run-local: build
-    @echo "Running locally at http://localhost:8080/"
-    docker run --rm -p 8080:80 {{IMAGE_NAME}}:latest
+    @echo "Running locally at http://localhost:8120/"
+    docker run --rm -p 8120:80 {{IMAGE_NAME}}:latest
 
 # --- PRIVATE IMPORTS ---
 # Load VM-specific deployment targets if they exist (git-ignored)

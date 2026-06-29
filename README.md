@@ -4,6 +4,8 @@ A modern, Dexcom Clarity-inspired glucose analytics dashboard that connects dire
 
 This runs in a Docker container which serves a client side report UI that is reminscent of Dexcom Clarity. The whole application runs in browser, no information is stored in the cloud.
 
+See the demo at [https://goodnumbers.net/clarity](https://goodnumbers.net/clarity)
+
 ---
 
 ## Features
@@ -101,7 +103,7 @@ To verify the container locally before pushing:
 
 ```bash
 just run-local
-# Opens at http://localhost:8080/
+# Opens at http://localhost:8120/
 ```
 
 ### All `just` commands
