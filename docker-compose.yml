@@ -1,0 +1,16 @@
+# Standalone Docker Compose for Nightscout Lucid
+# Allows hosting the Dexcom Clarity style dashboard independently at http://localhost:8080/
+services:
+  clarity:
+    build:
+      context: .
+      args:
+        - VITE_BASE=/
+    ports:
+      - "8080:80"
+    environment:
+      # Optional: runtime credentials for Nurse Access Code feature
+      - NURSE_ACCESS_CODE=${NURSE_ACCESS_CODE:-}
+      - NURSE_NIGHTSCOUT_URL=${NURSE_NIGHTSCOUT_URL:-}
+      - NURSE_NIGHTSCOUT_TOKEN=${NURSE_NIGHTSCOUT_TOKEN:-}
+    restart: unless-stopped

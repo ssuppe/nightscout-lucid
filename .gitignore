@@ -29,3 +29,6 @@ coverage
 
 # Deployment artifacts (Docker image tarballs)
 deploy-artifacts/
+
+# Private build configurations
+private.just
