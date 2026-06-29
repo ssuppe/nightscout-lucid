@@ -74,16 +74,28 @@ export const DailyMiniChart: React.FC<DailyMiniChartProps> = ({
           }
         },
         formatter: (params: any) => {
-          let html = '';
-          params.forEach((p: any) => {
-            const timeVal = p.value[0];
-            const hour = Math.floor(timeVal);
-            const min = Math.round((timeVal - hour) * 60);
-            const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-            
+          const plist = Array.isArray(params) ? params : [params];
+          if (plist.length === 0) return '';
+
+          // Determine display time from the first parameter
+          const firstParam = plist[0];
+          const timeVal = firstParam.value[0];
+          const hour = Math.floor(timeVal);
+          const min = Math.round((timeVal - hour) * 60);
+          const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+
+          let html = `<div style="font-weight: bold; margin-bottom: 4px; font-size: 11px; color: #333;">Time: ${timeStr}</div>`;
+          
+          plist.forEach((p: any) => {
             if (p.seriesName === 'Glucose') {
-              html += `<div><strong>Time:</strong> ${timeStr}</div>`;
-              html += `<div><strong>Glucose:</strong> ${p.value[1].toFixed(isMgdl ? 0 : 1)} ${units}</div>`;
+              html += `<div style="color: #475569;"><strong>Glucose:</strong> ${p.value[1].toFixed(isMgdl ? 0 : 1)} ${units}</div>`;
+            } else if (p.seriesName === 'Carbs' && p.data) {
+              const amount = p.data.amount;
+              const noteStr = p.data.note ? ` (${p.data.note})` : '';
+              html += `<div style="color: #10b981;"><strong>Carbs:</strong> ${amount}g${noteStr}</div>`;
+            } else if (p.seriesName === 'Insulin' && p.data) {
+              const amount = p.data.amount;
+              html += `<div style="color: #3b82f6;"><strong>Insulin:</strong> ${amount} U</div>`;
             }
           });
           return html;
@@ -193,8 +205,7 @@ export const DailyMiniChart: React.FC<DailyMiniChartProps> = ({
         symbol: 'circle',
         symbolSize: 14,
         color: '#10b981',
-        label: { show: true, formatter: (p: any) => `${p.data.amount}`, color: '#ffffff', fontSize: 7, fontWeight: 'bold' },
-        tooltip: { formatter: (p: any) => `Carbs: ${p.data.amount}g ${p.data.note ? `(${p.data.note})` : ''}` }
+        label: { show: true, formatter: (p: any) => `${p.data.amount}`, color: '#ffffff', fontSize: 7, fontWeight: 'bold' }
       },
       // 4. Insulin points
       {
@@ -204,8 +215,7 @@ export const DailyMiniChart: React.FC<DailyMiniChartProps> = ({
         symbol: 'triangle',
         symbolSize: 12,
         color: '#3b82f6',
-        label: { show: true, position: 'inside', formatter: (p: any) => `${p.data.amount}`, color: '#ffffff', fontSize: 6, fontWeight: 'bold', offset: [0, 2] },
-        tooltip: { formatter: (p: any) => `Insulin: ${p.data.amount} U` }
+        label: { show: true, position: 'inside', formatter: (p: any) => `${p.data.amount}`, color: '#ffffff', fontSize: 6, fontWeight: 'bold', offset: [0, 2] }
       }
     ];
 
