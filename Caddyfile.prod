@@ -1,11 +1,24 @@
 # Caddyfile.prod — internal Caddy config for the nightscout-lucid container
-# This container listens on :80 and is proxied from the goodnumbers Caddy
-# at the /clarity path. It serves the Vite SPA with proper HTML5 fallback.
+# This container listens on :80 and serves the Vite SPA with proper HTML5 fallback.
 
 :80 {
     root * /srv
 
-    # Route authorized nurse requests to Nightscout
+    # Route authorized nurse requests to Nightscout (root path)
+    handle /api/nurse/* {
+        @unauthorized_nurse {
+            not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE}"
+        }
+        respond @unauthorized_nurse "Unauthorized" 401
+
+        uri strip_prefix /api/nurse
+        rewrite * {path}?{query}&token={$NURSE_NIGHTSCOUT_TOKEN}
+        reverse_proxy {$NURSE_NIGHTSCOUT_URL} {
+            header_up Host {upstream_hostport}
+        }
+    }
+
+    # Route authorized nurse requests to Nightscout (clarity subpath compatibility)
     handle /clarity/api/nurse/* {
         @unauthorized_nurse {
             not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE}"
@@ -19,9 +32,15 @@
         }
     }
 
-    # Serve static files and fallback for SPA routing
+    # Serve static files and fallback for subpath SPA routing
     handle /clarity* {
         try_files {path} /clarity/index.html
+        file_server
+    }
+
+    # Default fallback for root SPA routing
+    handle * {
+        try_files {path} /index.html
         file_server
     }
 }

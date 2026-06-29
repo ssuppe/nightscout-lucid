@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 RUN npm run build -- --base=$VITE_BASE
 
-# Stage 2: Serve with Caddy (consistent with goodnumbers-clean stack)
+# Stage 2: Serve with Caddy
 FROM caddy:alpine
 ARG VITE_BASE=/
 
