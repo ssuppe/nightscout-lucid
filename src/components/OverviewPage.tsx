@@ -9,8 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   Smartphone,
-  Award,
-  FileText
+  Award
 } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
@@ -1805,7 +1804,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                       className="text-[9px] font-black text-slate-400 uppercase tracking-widest"
                                       style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}
                                     >
-                                      {units === 'mmol' ? 'mmol/L' : 'mg/dL'}
+                                      {units === GlucoseUnit.MMOL ? 'mmol/L' : 'mg/dL'}
                                     </span>
                                   </div>
                                 </td>
