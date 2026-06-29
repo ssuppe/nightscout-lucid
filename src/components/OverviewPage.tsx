@@ -363,15 +363,17 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <span>Steven Suppe</span>
                 <span className="text-[10px] text-slate-400">▼</span>
               </button>
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg py-1 hidden group-hover:block z-50">
-                <a href="#" className="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold">Manage Consent</a>
-                <a href="#" className="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold">Manage Profile</a>
-                <button
-                  onClick={onDisconnect}
-                  className="w-full text-left block px-4 py-2 text-xs text-red-600 hover:bg-red-50 font-bold border-t border-slate-100 cursor-pointer"
-                >
-                  Logout / Disconnect
-                </button>
+              <div className="absolute right-0 top-full pt-1 w-48 hidden group-hover:block z-50">
+                <div className="bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                  <a href="#" className="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold">Manage Consent</a>
+                  <a href="#" className="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold">Manage Profile</a>
+                  <button
+                    onClick={onDisconnect}
+                    className="w-full text-left block px-4 py-2 text-xs text-red-600 hover:bg-red-50 font-bold border-t border-slate-100 cursor-pointer"
+                  >
+                    Logout / Disconnect
+                  </button>
+                </div>
               </div>
             </div>
           </div>
