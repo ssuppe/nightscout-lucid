@@ -424,6 +424,23 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <h1 className="text-2xl font-black text-slate-900 tracking-tight capitalize">
                 {activeTab === 'stats' ? 'Statistics' : activeTab}
               </h1>
+
+              {/* Mobile page selector dropdown */}
+              <div className="md:hidden">
+                <select
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value as any)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#72B100]/25 focus:border-[#72B100] cursor-pointer shadow-sm"
+                >
+                  <option value="overview">Overview</option>
+                  <option value="patterns">Patterns</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="daily">Daily</option>
+                  <option value="compare">Compare</option>
+                  <option value="stats">Statistics</option>
+                  <option value="agp">AGP</option>
+                </select>
+              </div>
               
               {/* Date Range Picker */}
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
