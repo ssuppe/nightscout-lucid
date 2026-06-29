@@ -279,6 +279,7 @@ export interface HourlyTIR {
   target: number;
   high: number;
   veryHigh: number;
+  noData?: boolean;
 }
 
 export function calculateHourlyTIR(entries: NightscoutEntry[]): HourlyTIR[] {

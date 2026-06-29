@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { AGPChart } from './AGPChart';
 import { GlucoseUnit } from '../utils/nightscout';
