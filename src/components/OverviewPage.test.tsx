@@ -77,6 +77,23 @@ describe('OverviewPage', () => {
     vi.mocked(mockClient.fetchTreatments).mockResolvedValue([]);
   };
 
+  /**
+   * Generates 100 entries spread over 9 days, sorted oldest-first.
+   * Newest = now, Oldest = now - 9 days.
+   */
+  const setupOldestFirstMockData = () => {
+    const now = Date.now();
+    const mockEntries = Array.from({ length: 100 }, (_, i) => ({
+      _id: `id-${i}`,
+      date: now - i * (9 * 24 * 60 * 60 * 1000) / 99, // spread over 9 days
+      sgv: 120,
+      type: 'sgv',
+    })).reverse(); // oldest-first
+
+    vi.mocked(mockClient.fetchEntries).mockResolvedValue(mockEntries);
+    vi.mocked(mockClient.fetchTreatments).mockResolvedValue([]);
+  };
+
   it('renders loading state initially', async () => {
     setupMockData(120);
     render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
@@ -402,6 +419,24 @@ describe('OverviewPage', () => {
     // Let's verify that the text matches the clamped rangeStartStr
     expect(screen.getByText(new RegExp(`Week of ${rangeStartStr}`, 'i'))).toBeInTheDocument();
   });
+
+  it('correctly calculates active sensor days and wear percentage when displayEntries is sorted oldest-first', async () => {
+    setupOldestFirstMockData();
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // 100 entries spread over 9 days.
+    // Wear percentage = Math.round(((100 / 9) / 288) * 100) = Math.round(3.858...) = 4%
+    // If the bug exists (giving negative or clamped activeSensorDays = 1 due to oldest-first sorting):
+    // Wear percentage = Math.round(((100 / 1) / 288) * 100) = 35%
+    const elements = screen.getAllByText('4%');
+    expect(elements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('35%')).not.toBeInTheDocument();
+  });
 });
+
 
 

@@ -33,6 +33,18 @@ interface OverviewPageProps {
   onDisconnect: () => void;
 }
 
+const getActiveDays = (entries: NightscoutEntry[], defaultDays: number): number => {
+  if (!entries || entries.length === 0) return 1;
+  let min = entries[0].date;
+  let max = entries[0].date;
+  for (let i = 1; i < entries.length; i++) {
+    const d = entries[i].date;
+    if (d < min) min = d;
+    if (d > max) max = d;
+  }
+  return Math.min(defaultDays, Math.max(1, Math.ceil((max - min) / (1000 * 60 * 60 * 24))));
+};
+
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   client,
   preferredUnits,
@@ -148,11 +160,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   }, [units, displayEntries]);
 
-  const activeSensorDays = Math.min(dateRangeDays, Math.ceil(
-    displayEntries.length > 0 
-      ? (displayEntries[0].date - displayEntries[displayEntries.length - 1].date) / (1000 * 60 * 60 * 24)
-      : 1
-  ));
+  const activeSensorDays = getActiveDays(displayEntries, dateRangeDays);
   
   // Calculate distinct days containing CGM logs
   const getDaysWithDataCount = () => {
@@ -941,16 +949,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 const metricsA = calculateGlucoseMetrics(rawEntriesA, units);
                 const metricsB = calculateGlucoseMetrics(rawEntriesB, units);
 
-                const activeDaysA = Math.min(dateRangeDays, Math.ceil(
-                  rawEntriesA.length > 0 
-                    ? (rawEntriesA[0].date - rawEntriesA[rawEntriesA.length - 1].date) / (1000 * 60 * 60 * 24)
-                    : 1
-                ));
-                const activeDaysB = Math.min(dateRangeDays, Math.ceil(
-                  rawEntriesB.length > 0 
-                    ? (rawEntriesB[0].date - rawEntriesB[rawEntriesB.length - 1].date) / (1000 * 60 * 60 * 24)
-                    : 1
-                ));
+                const activeDaysA = getActiveDays(rawEntriesA, dateRangeDays);
+                const activeDaysB = getActiveDays(rawEntriesB, dateRangeDays);
 
                 const wearPctA = Math.min(100, Math.round(((rawEntriesA.length / Math.max(activeDaysA, 1)) / 288) * 100));
                 const wearPctB = Math.min(100, Math.round(((rawEntriesB.length / Math.max(activeDaysB, 1)) / 288) * 100));
