@@ -185,4 +185,70 @@ describe('OverviewPage', () => {
     fireEvent.click(hourlySubTabBtn);
     expect(screen.getByTestId('mock-hourly-stats-table')).toBeInTheDocument();
   });
+
+  it('renders Compare tab with Trends/Overlay/Daily sub-tabs', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const compareTabBtn = screen.getByRole('button', { name: 'Compare' });
+    fireEvent.click(compareTabBtn);
+
+    // Wait for compare content to render
+    await waitFor(() => {
+      expect(screen.getByTestId('compare-page-content')).toBeInTheDocument();
+    });
+
+    // Sub-tab buttons present (Overlay also appears in sidebar, so use getAllByRole)
+    expect(screen.getByRole('button', { name: 'Trends' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Overlay' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('button', { name: 'Daily' }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders Compare tab filter dropdowns (Days, Time of Day, Events)', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const compareTabBtn = screen.getByRole('button', { name: 'Compare' });
+    fireEvent.click(compareTabBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('compare-page-content')).toBeInTheDocument();
+    });
+
+    // Filter dropdown buttons are present
+    expect(screen.getByRole('button', { name: /days/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /time of day/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /events/i })).toBeInTheDocument();
+  });
+
+  it('renders Compare tab with Reference and Comparison period labels', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const compareTabBtn = screen.getByRole('button', { name: 'Compare' });
+    fireEvent.click(compareTabBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('compare-page-content')).toBeInTheDocument();
+    });
+
+    // Side-by-side date range header labels
+    expect(screen.getByText('Reference Period')).toBeInTheDocument();
+    expect(screen.getByText('Comparison Period')).toBeInTheDocument();
+
+    // Both AGP charts are rendered
+    expect(screen.getAllByTestId('mock-agp-chart').length).toBe(2);
+  });
 });

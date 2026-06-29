@@ -60,6 +60,16 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   // Device Info Panel State
   const [devicePanelExpanded, setDevicePanelExpanded] = useState<boolean>(true);
 
+  // Compare Page States
+  const [compareSubTab, setCompareSubTab] = useState<'trends' | 'overlay' | 'daily'>('trends');
+  const [compareDays, setCompareDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [compareTimeOfDay, setCompareTimeOfDay] = useState<'all' | 'daytime' | 'nighttime'>('all');
+  const [compareEvent, setCompareEvent] = useState<'none' | 'lows' | 'highs'>('none');
+  const [activeCompareDropdown, setActiveCompareDropdown] = useState<'days' | 'time' | 'events' | null>(null);
+
+  // Ref to track if we were in compare mode (to avoid double-reload on non-boundary tab switches)
+  const wasCompareRef = React.useRef<boolean>(false);
+
   const loadData = async (days: number) => {
     setLoading(true);
     setError(null);
@@ -97,34 +107,63 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   };
 
-  // Reload data when date range changes
+  const isCompareNow = activeTab === 'compare';
+
+  // Filter entries to only dateRangeDays for non-compare views
+  const displayEntries = React.useMemo(() => {
+    if (isCompareNow) {
+      return entries;
+    }
+    const limitDate = new Date();
+    limitDate.setDate(limitDate.getDate() - dateRangeDays);
+    return entries.filter(e => e.date >= limitDate.getTime());
+  }, [entries, dateRangeDays, isCompareNow]);
+
+  // Reload data when dateRangeDays changes (always load appropriate amount)
   useEffect(() => {
-    loadData(dateRangeDays);
+    const daysToLoad = isCompareNow ? dateRangeDays * 2 : dateRangeDays;
+    loadData(daysToLoad);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRangeDays]);
+
+  // Also reload when switching from non-compare to compare (need double the data)
+  useEffect(() => {
+    const wasCompare = wasCompareRef.current;
+    wasCompareRef.current = isCompareNow;
+    if (!wasCompare && isCompareNow) {
+      // Switching into compare: reload with double days
+      loadData(dateRangeDays * 2);
+    } else if (wasCompare && !isCompareNow) {
+      // Switching back from compare: reload with single period
+      loadData(dateRangeDays);
+    }
+    // If not changing the compare boundary, don't reload
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCompareNow]);
 
   // Recalculate metrics when preferred unit changes, without re-fetching
   useEffect(() => {
-    if (entries.length > 0) {
-      const computed = calculateGlucoseMetrics(entries, units);
+    if (displayEntries.length > 0) {
+      const computed = calculateGlucoseMetrics(displayEntries, units);
       setMetrics(computed);
     }
-  }, [units, entries]);
+  }, [units, displayEntries]);
 
   const activeSensorDays = Math.min(dateRangeDays, Math.ceil(
-    entries.length > 0 
-      ? (entries[0].date - entries[entries.length - 1].date) / (1000 * 60 * 60 * 24)
+    displayEntries.length > 0 
+      ? (displayEntries[0].date - displayEntries[displayEntries.length - 1].date) / (1000 * 60 * 60 * 24)
       : 1
   ));
   
   // Calculate distinct days containing CGM logs
   const getDaysWithDataCount = () => {
-    if (entries.length === 0) return 0;
-    const uniqueDays = new Set(entries.map(e => new Date(e.date).toDateString()));
+    if (displayEntries.length === 0) return 0;
+    const uniqueDays = new Set(displayEntries.map(e => new Date(e.date).toDateString()));
     return Math.min(dateRangeDays, uniqueDays.size);
   };
 
-  const avgReadingsPerDay = entries.length > 0 
-    ? Math.round(entries.length / Math.max(activeSensorDays, 1)) 
+  const avgReadingsPerDay = displayEntries.length > 0 
+    ? Math.round(displayEntries.length / Math.max(activeSensorDays, 1)) 
     : 0;
   
   const wearPercentage = Math.min(100, Math.round((avgReadingsPerDay / 288) * 100));
@@ -164,7 +203,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   };
 
   const getBestDay = () => {
-    if (entries.length === 0) return { dateStr: '-', tir: 0 };
+    if (displayEntries.length === 0) return { dateStr: '-', tir: 0 };
     const days = getDaysArray();
     let bestDayDate = days[0];
     let bestDayTIR = 0;
@@ -172,7 +211,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     days.forEach(day => {
       const start = day.getTime();
       const end = start + 24 * 60 * 60 * 1000 - 1;
-      const dayEntries = entries.filter(e => e.date >= start && e.date <= end);
+      const dayEntries = displayEntries.filter(e => e.date >= start && e.date <= end);
       if (dayEntries.length > 0) {
         const inRangeCount = dayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length;
         const tir = Math.round((inRangeCount / dayEntries.length) * 100);
@@ -248,8 +287,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     return `${pct}%`;
   };
 
-  const latestUploadDateStr = entries.length > 0 
-    ? new Date(entries[0].date).toLocaleDateString(undefined, {
+  const latestUploadDateStr = displayEntries.length > 0 
+    ? new Date(displayEntries[0].date).toLocaleDateString(undefined, {
         day: 'numeric',
         month: 'long',
         year: 'numeric'
@@ -614,7 +653,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </h3>
                     
                     <HourlyGlucoseChart 
-                      hourlyStats={calculate15MinGlucoseStats(entries, units)} 
+                      hourlyStats={calculate15MinGlucoseStats(displayEntries, units)} 
                       units={units} 
                     />
 
@@ -794,16 +833,674 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 </div>
               )}
 
-              {/* COMPARE TAB PLACEHOLDER */}
-              {activeTab === 'compare' && (
-                <div className="bg-white border border-slate-200 rounded-xl p-10 shadow-sm text-center max-w-xl mx-auto my-8">
-                  <FileText className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                  <h3 className="text-lg font-black text-slate-800">Comparison reports</h3>
-                  <p className="text-xs text-slate-500 mt-2 font-bold leading-relaxed">
-                    Select a second date range to compare with your current reports. Comparison views require additional historical logs from your CGM.
-                  </p>
-                </div>
-              )}
+              {/* COMPARE TAB CONTENT */}
+              {activeTab === 'compare' && (() => {
+                // Prepare date ranges
+                const toA = new Date();
+                toA.setHours(23, 59, 59, 999);
+                const fromA = new Date();
+                fromA.setDate(toA.getDate() - dateRangeDays + 1);
+                fromA.setHours(0, 0, 0, 0);
+
+                const toB = new Date(fromA);
+                toB.setDate(fromA.getDate() - 1);
+                toB.setHours(23, 59, 59, 999);
+                const fromB = new Date(toB);
+                fromB.setDate(toB.getDate() - dateRangeDays + 1);
+                fromB.setHours(0, 0, 0, 0);
+
+                const formatDate = (d: Date) => d.toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                });
+
+                const labelA = `${formatDate(fromA)} - ${formatDate(toA)}`;
+                const labelB = `${formatDate(fromB)} - ${formatDate(toB)}`;
+
+                // Filter entries for Range A and B
+                let rawEntriesA = entries.filter(e => e.date >= fromA.getTime() && e.date <= toA.getTime());
+                let rawEntriesB = entries.filter(e => e.date >= fromB.getTime() && e.date <= toB.getTime());
+
+                // Apply weekday filters
+                rawEntriesA = rawEntriesA.filter(e => compareDays.includes(new Date(e.date).getDay()));
+                rawEntriesB = rawEntriesB.filter(e => compareDays.includes(new Date(e.date).getDay()));
+
+                // Apply time of day filters
+                if (compareTimeOfDay === 'daytime') {
+                  const filterDaytime = (e: NightscoutEntry) => {
+                    const hr = new Date(e.date).getHours();
+                    return hr >= 7 && hr < 22;
+                  };
+                  rawEntriesA = rawEntriesA.filter(filterDaytime);
+                  rawEntriesB = rawEntriesB.filter(filterDaytime);
+                } else if (compareTimeOfDay === 'nighttime') {
+                  const filterNighttime = (e: NightscoutEntry) => {
+                    const hr = new Date(e.date).getHours();
+                    return hr < 7 || hr >= 22;
+                  };
+                  rawEntriesA = rawEntriesA.filter(filterNighttime);
+                  rawEntriesB = rawEntriesB.filter(filterNighttime);
+                }
+
+                // Apply event filters
+                if (compareEvent !== 'none') {
+                  const getDaysWithEvent = (entriesList: NightscoutEntry[]) => {
+                    const setOfDays = new Set<string>();
+                    entriesList.forEach(e => {
+                      const dStr = new Date(e.date).toDateString();
+                      if (compareEvent === 'lows' && e.sgv < 70) {
+                        setOfDays.add(dStr);
+                      } else if (compareEvent === 'highs' && e.sgv > 180) {
+                        setOfDays.add(dStr);
+                      }
+                    });
+                    return setOfDays;
+                  };
+
+                  const daysA = getDaysWithEvent(rawEntriesA);
+                  const daysB = getDaysWithEvent(rawEntriesB);
+
+                  rawEntriesA = rawEntriesA.filter(e => daysA.has(new Date(e.date).toDateString()));
+                  rawEntriesB = rawEntriesB.filter(e => daysB.has(new Date(e.date).toDateString()));
+                }
+
+                const metricsA = calculateGlucoseMetrics(rawEntriesA, units);
+                const metricsB = calculateGlucoseMetrics(rawEntriesB, units);
+
+                const activeDaysA = Math.min(dateRangeDays, Math.ceil(
+                  rawEntriesA.length > 0 
+                    ? (rawEntriesA[0].date - rawEntriesA[rawEntriesA.length - 1].date) / (1000 * 60 * 60 * 24)
+                    : 1
+                ));
+                const activeDaysB = Math.min(dateRangeDays, Math.ceil(
+                  rawEntriesB.length > 0 
+                    ? (rawEntriesB[0].date - rawEntriesB[rawEntriesB.length - 1].date) / (1000 * 60 * 60 * 24)
+                    : 1
+                ));
+
+                const wearPctA = Math.min(100, Math.round(((rawEntriesA.length / Math.max(activeDaysA, 1)) / 288) * 100));
+                const wearPctB = Math.min(100, Math.round(((rawEntriesB.length / Math.max(activeDaysB, 1)) / 288) * 100));
+
+                const getWeeksArrayForRange = (endLimit: Date) => {
+                  const weeks = [];
+                  const baseEnd = new Date(endLimit);
+                  baseEnd.setHours(23, 59, 59, 999);
+
+                  for (let i = 0; i < dateRangeDays; i += 7) {
+                    const weekEnd = new Date(baseEnd);
+                    weekEnd.setDate(baseEnd.getDate() - i);
+                    weekEnd.setHours(23, 59, 59, 999);
+
+                    const weekStart = new Date(weekEnd);
+                    weekStart.setDate(weekEnd.getDate() - 6);
+                    weekStart.setHours(0, 0, 0, 0);
+
+                    weeks.push({ start: weekStart, end: weekEnd });
+                  }
+                  return weeks;
+                };
+
+                const getDaysArrayForRange = (startDate: Date, numDays: number) => {
+                  const arr = [];
+                  for (let i = 0; i < numDays; i++) {
+                    const d = new Date(startDate);
+                    d.setDate(startDate.getDate() + i);
+                    d.setHours(0, 0, 0, 0);
+                    arr.push(d);
+                  }
+                  return arr;
+                };
+
+                return (
+                  <div className="space-y-6 text-left" data-testid="compare-page-content">
+                    {/* Top Action controls bar */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 shadow-sm">
+                        {[
+                          { id: 'trends', label: 'Trends' },
+                          { id: 'overlay', label: 'Overlay' },
+                          { id: 'daily', label: 'Daily' }
+                        ].map(tab => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setCompareSubTab(tab.id as any)}
+                            className={`px-4 py-1.5 text-xs font-black rounded-md transition cursor-pointer ${
+                              compareSubTab === tab.id
+                                ? 'bg-white text-slate-800 shadow-sm border border-slate-200'
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Dropdown Filters */}
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        {/* Days Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setActiveCompareDropdown(activeCompareDropdown === 'days' ? null : 'days')}
+                            className="px-3.5 py-1.5 text-xs font-extrabold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <span>Days</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                          </button>
+                          {activeCompareDropdown === 'days' && (
+                            <div className="absolute right-0 sm:left-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50 space-y-2.5">
+                              <div className="flex flex-col gap-2">
+                                {weekdays.map(d => (
+                                  <label key={d.value} className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={compareDays.includes(d.value)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setCompareDays([...compareDays, d.value]);
+                                        } else {
+                                          setCompareDays(compareDays.filter(val => val !== d.value));
+                                        }
+                                      }}
+                                      className="rounded text-[#72B100] focus:ring-[#72B100]"
+                                    />
+                                    <span>{d.label}s</span>
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="border-t border-slate-100 pt-2 flex justify-between gap-2">
+                                <button
+                                  onClick={() => setCompareDays([0, 1, 2, 3, 4, 5, 6])}
+                                  className="text-[10px] font-bold text-slate-400 hover:text-slate-700 cursor-pointer"
+                                >
+                                  Select All
+                                </button>
+                                <button
+                                  onClick={() => setActiveCompareDropdown(null)}
+                                  className="text-[10px] font-black text-[#72B100] hover:text-[#527e00] cursor-pointer"
+                                >
+                                  Apply
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Time of Day Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setActiveCompareDropdown(activeCompareDropdown === 'time' ? null : 'time')}
+                            className="px-3.5 py-1.5 text-xs font-extrabold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <span>Time of Day</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                          </button>
+                          {activeCompareDropdown === 'time' && (
+                            <div className="absolute right-0 sm:left-0 mt-1.5 w-44 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50 space-y-2.5">
+                              <div className="flex flex-col gap-2.5">
+                                {[
+                                  { id: 'all', label: 'All Day' },
+                                  { id: 'daytime', label: 'Daytime (07:00-22:00)' },
+                                  { id: 'nighttime', label: 'Nighttime (22:00-07:00)' }
+                                ].map(t => (
+                                  <label key={t.id} className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name="compareTimeRadio"
+                                      checked={compareTimeOfDay === t.id}
+                                      onChange={() => setCompareTimeOfDay(t.id as any)}
+                                      className="text-[#72B100] focus:ring-[#72B100]"
+                                    />
+                                    <span>{t.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="border-t border-slate-100 pt-2 text-right">
+                                <button
+                                  onClick={() => setActiveCompareDropdown(null)}
+                                  className="text-[10px] font-black text-[#72B100] hover:text-[#527e00] cursor-pointer"
+                                >
+                                  Apply
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Events Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setActiveCompareDropdown(activeCompareDropdown === 'events' ? null : 'events')}
+                            className="px-3.5 py-1.5 text-xs font-extrabold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <span>Events</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                          </button>
+                          {activeCompareDropdown === 'events' && (
+                            <div className="absolute right-0 mt-1.5 w-40 bg-white border border-slate-200 rounded-lg shadow-lg p-3 z-50 space-y-2.5">
+                              <div className="flex flex-col gap-2.5">
+                                {[
+                                  { id: 'none', label: 'None' },
+                                  { id: 'lows', label: 'Lows (< 70)' },
+                                  { id: 'highs', label: 'Highs (> 180)' }
+                                ].map(ev => (
+                                  <label key={ev.id} className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name="compareEventRadio"
+                                      checked={compareEvent === ev.id}
+                                      onChange={() => setCompareEvent(ev.id as any)}
+                                      className="text-[#72B100] focus:ring-[#72B100]"
+                                    />
+                                    <span>{ev.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="border-t border-slate-100 pt-2 text-right">
+                                <button
+                                  onClick={() => setActiveCompareDropdown(null)}
+                                  className="text-[10px] font-black text-[#72B100] hover:text-[#527e00] cursor-pointer"
+                                >
+                                  Apply
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Active Filters Display Tag Bar */}
+                    {(compareDays.length < 7 || compareTimeOfDay !== 'all' || compareEvent !== 'none') && (
+                      <div className="flex items-center gap-2 bg-[#72B100]/5 border border-[#72B100]/10 rounded-xl px-4 py-2 text-xs text-slate-600 font-semibold shadow-sm">
+                        <button
+                          onClick={() => {
+                            setCompareDays([0, 1, 2, 3, 4, 5, 6]);
+                            setCompareTimeOfDay('all');
+                            setCompareEvent('none');
+                          }}
+                          className="text-[#9C0006] hover:text-red-700 cursor-pointer mr-1 font-bold"
+                          title="Clear all filters"
+                        >
+                          ✕
+                        </button>
+                        <span className="font-bold text-slate-700">Filtered by:</span>
+                        {compareDays.length < 7 && (
+                          <span className="bg-white px-2 py-0.5 border border-slate-200 rounded">
+                            {compareDays.length} Days ({compareDays.map(d => weekdays.find(w => w.value === d)?.label).join(', ')})
+                          </span>
+                        )}
+                        {compareTimeOfDay !== 'all' && (
+                          <span className="bg-white px-2 py-0.5 border border-slate-200 rounded uppercase">
+                            Time: {compareTimeOfDay}
+                          </span>
+                        )}
+                        {compareEvent !== 'none' && (
+                          <span className="bg-white px-2 py-0.5 border border-slate-200 rounded uppercase">
+                            Events: {compareEvent}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Side-by-Side Comparison Columns */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                      
+                      {/* Left Column - Range B (Past / Reference Range) */}
+                      <div className="space-y-6">
+                        <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 shadow-inner text-center">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Reference Period</span>
+                          <span className="text-sm font-extrabold text-slate-800">{labelB}</span>
+                        </div>
+
+                        {/* Trends sub-tab: AGP + Summary */}
+                        {compareSubTab === 'trends' && (
+                          <div className="space-y-6">
+                            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4 text-center">Modal Day (AGP Profile)</h4>
+                              <AGPChart percentiles={calculateAGPPercentiles(rawEntriesB, units)} units={units} />
+                            </div>
+
+                            {/* Summary stats block */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                              {/* TIR */}
+                              <div className="md:col-span-7 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between">
+                                <div>
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
+                                  <div className="flex gap-4 items-center">
+                                    <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
+                                      {metricsB.timeInVeryHigh > 0 && <div style={{ height: `${metricsB.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
+                                      {metricsB.timeInHigh > 0 && <div style={{ height: `${metricsB.timeInHigh}%` }} className="bg-[#FCD116]" />}
+                                      {metricsB.timeInTarget > 0 && <div style={{ height: `${metricsB.timeInTarget}%` }} className="bg-[#72B100]" />}
+                                      {metricsB.timeInLow > 0 && <div style={{ height: `${metricsB.timeInLow}%` }} className="bg-[#F04124]" />}
+                                      {metricsB.timeInVeryLow > 0 && <div style={{ height: `${metricsB.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
+                                    </div>
+                                    <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#F29100]" />
+                                          <span>Very High</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInVeryHigh, rawEntriesB.filter(e => e.sgv > 250).length)}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#FCD116]" />
+                                          <span>High</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInHigh, rawEntriesB.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between py-0.5 bg-[#72B100]/5 px-1.5 rounded">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#72B100]" />
+                                          <span className="text-[#527e00]">In Target</span>
+                                        </div>
+                                        <span className="text-[#72B100] font-black">{metricsB.timeInTarget}%</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#F04124]" />
+                                          <span>Low</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInLow, rawEntriesB.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#9C0006]" />
+                                          <span>Very Low</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInVeryLow, rawEntriesB.filter(e => e.sgv < 54).length)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Stats table */}
+                              <div className="md:col-span-5 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between text-xs font-bold text-slate-500">
+                                <div className="space-y-2.5">
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Metrics</h5>
+                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                    <span>Average</span>
+                                    <span className="text-slate-800 font-black">
+                                      {metricsB.readingCount > 0 
+                                        ? `${isMgdl ? metricsB.mean.toFixed(0) : metricsB.mean.toFixed(1)} ${units}`
+                                        : '-'
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                    <span>GMI</span>
+                                    <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${metricsB.gmi}%` : '-'}</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                    <span>Variability (CV)</span>
+                                    <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${metricsB.cv}%` : '-'}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>CGM Active</span>
+                                    <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${wearPctB}%` : '-'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Overlay sub-tab */}
+                        {compareSubTab === 'overlay' && (
+                          <div className="space-y-4">
+                            {getWeeksArrayForRange(toB).map((week, idx) => {
+                              const weekEntries = rawEntriesB.filter(
+                                e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
+                              );
+                              const weekLabel = `Week of ${week.start.toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric'
+                              })} - ${week.end.toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}`;
+
+                              return (
+                                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                  <WeeklyOverlayChart
+                                    entries={weekEntries}
+                                    units={units}
+                                    selectedDays={compareDays}
+                                    eventFilter={compareEvent === 'highs' ? 'highs' : compareEvent === 'lows' ? 'lows' : 'all'}
+                                    weekLabel={weekLabel}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Daily sub-tab */}
+                        {compareSubTab === 'daily' && (
+                          <div className="space-y-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                            {getDaysArrayForRange(fromB, dateRangeDays).reverse().map((dayDate, idx) => {
+                              const start = dayDate.getTime();
+                              const end = start + 24 * 60 * 60 * 1000 - 1;
+                              const dayEntries = rawEntriesB.filter(e => e.date >= start && e.date <= end);
+                              const dayTreatments = treatments.filter(t => {
+                                const date = t.date || new Date(t.created_at).getTime();
+                                return date >= start && date <= end;
+                              });
+
+                              const dateString = dayDate.toLocaleDateString(undefined, {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric'
+                              });
+
+                              return (
+                                <div key={idx} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-4">
+                                  <div className="w-28 shrink-0 text-left">
+                                    <span className="text-xs font-black text-slate-800">{dateString}</span>
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">{dayEntries.length} logs</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0 h-14 flex items-center">
+                                    {dayEntries.length > 0 ? (
+                                      <DailyMiniChart
+                                        entries={dayEntries}
+                                        treatments={dayTreatments}
+                                        units={units}
+                                        dayStart={start}
+                                      />
+                                    ) : (
+                                      <span className="text-[10px] italic text-slate-300">No logs</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Column - Range A (Recent / Comparison Target Range) */}
+                      <div className="space-y-6">
+                        <div className="bg-[#72B100]/5 border border-[#72B100]/20 rounded-xl px-4 py-3 shadow-inner text-center">
+                          <span className="text-[10px] font-black text-[#72B100] uppercase tracking-wider block mb-0.5">Comparison Period</span>
+                          <span className="text-sm font-extrabold text-[#72B100]">{labelA}</span>
+                        </div>
+
+                        {/* Trends sub-tab: AGP + Summary */}
+                        {compareSubTab === 'trends' && (
+                          <div className="space-y-6">
+                            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4 text-center">Modal Day (AGP Profile)</h4>
+                              <AGPChart percentiles={calculateAGPPercentiles(rawEntriesA, units)} units={units} />
+                            </div>
+
+                            {/* Summary stats block */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                              {/* TIR */}
+                              <div className="md:col-span-7 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between">
+                                <div>
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
+                                  <div className="flex gap-4 items-center">
+                                    <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
+                                      {metricsA.timeInVeryHigh > 0 && <div style={{ height: `${metricsA.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
+                                      {metricsA.timeInHigh > 0 && <div style={{ height: `${metricsA.timeInHigh}%` }} className="bg-[#FCD116]" />}
+                                      {metricsA.timeInTarget > 0 && <div style={{ height: `${metricsA.timeInTarget}%` }} className="bg-[#72B100]" />}
+                                      {metricsA.timeInLow > 0 && <div style={{ height: `${metricsA.timeInLow}%` }} className="bg-[#F04124]" />}
+                                      {metricsA.timeInVeryLow > 0 && <div style={{ height: `${metricsA.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
+                                    </div>
+                                    <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#F29100]" />
+                                          <span>Very High</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInVeryHigh, rawEntriesA.filter(e => e.sgv > 250).length)}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#FCD116]" />
+                                          <span>High</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInHigh, rawEntriesA.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between py-0.5 bg-[#72B100]/5 px-1.5 rounded">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#72B100]" />
+                                          <span className="text-[#527e00]">In Target</span>
+                                        </div>
+                                        <span className="text-[#72B100] font-black">{metricsA.timeInTarget}%</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#F04124]" />
+                                          <span>Low</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInLow, rawEntriesA.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="w-2 h-2 rounded bg-[#9C0006]" />
+                                          <span>Very Low</span>
+                                        </div>
+                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInVeryLow, rawEntriesA.filter(e => e.sgv < 54).length)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Stats table */}
+                              <div className="md:col-span-5 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between text-xs font-bold text-slate-500">
+                                <div className="space-y-2.5">
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Metrics</h5>
+                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                    <span>Average</span>
+                                    <span className="text-slate-800 font-black">
+                                      {metricsA.readingCount > 0 
+                                        ? `${isMgdl ? metricsA.mean.toFixed(0) : metricsA.mean.toFixed(1)} ${units}`
+                                        : '-'
+                                      }
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                    <span>GMI</span>
+                                    <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${metricsA.gmi}%` : '-'}</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                    <span>Variability (CV)</span>
+                                    <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${metricsA.cv}%` : '-'}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>CGM Active</span>
+                                    <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${wearPctA}%` : '-'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Overlay sub-tab */}
+                        {compareSubTab === 'overlay' && (
+                          <div className="space-y-4">
+                            {getWeeksArrayForRange(toA).map((week, idx) => {
+                              const weekEntries = rawEntriesA.filter(
+                                e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
+                              );
+                              const weekLabel = `Week of ${week.start.toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric'
+                              })} - ${week.end.toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}`;
+
+                              return (
+                                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                  <WeeklyOverlayChart
+                                    entries={weekEntries}
+                                    units={units}
+                                    selectedDays={compareDays}
+                                    eventFilter={compareEvent === 'highs' ? 'highs' : compareEvent === 'lows' ? 'lows' : 'all'}
+                                    weekLabel={weekLabel}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Daily sub-tab */}
+                        {compareSubTab === 'daily' && (
+                          <div className="space-y-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                            {getDaysArrayForRange(fromA, dateRangeDays).reverse().map((dayDate, idx) => {
+                              const start = dayDate.getTime();
+                              const end = start + 24 * 60 * 60 * 1000 - 1;
+                              const dayEntries = rawEntriesA.filter(e => e.date >= start && e.date <= end);
+                              const dayTreatments = treatments.filter(t => {
+                                const date = t.date || new Date(t.created_at).getTime();
+                                return date >= start && date <= end;
+                              });
+
+                              const dateString = dayDate.toLocaleDateString(undefined, {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric'
+                              });
+
+                              return (
+                                <div key={idx} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-4">
+                                  <div className="w-28 shrink-0 text-left">
+                                    <span className="text-xs font-black text-slate-800">{dateString}</span>
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">{dayEntries.length} logs</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0 h-14 flex items-center">
+                                    {dayEntries.length > 0 ? (
+                                      <DailyMiniChart
+                                        entries={dayEntries}
+                                        treatments={dayTreatments}
+                                        units={units}
+                                        dayStart={start}
+                                      />
+                                    ) : (
+                                      <span className="text-[10px] italic text-slate-300">No logs</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* WEEKLY OVERLAY TAB */}
               {activeTab === 'overlay' && (
@@ -896,7 +1593,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   {/* Weekly overlay list */}
                   <div className="lg:col-span-9 space-y-6">
                     {getWeeksArray().map((week, idx) => {
-                      const weekEntries = entries.filter(
+                      const weekEntries = displayEntries.filter(
                         e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
                       );
                       const weekLabel = `Week of ${week.start.toLocaleDateString(undefined, {
@@ -1071,7 +1768,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                   {/* AGP ECharts Chart Wrapper */}
                   <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/5">
-                    <AGPChart percentiles={calculateAGPPercentiles(entries, units)} units={units} />
+                    <AGPChart percentiles={calculateAGPPercentiles(displayEntries, units)} units={units} />
                   </div>
 
                   {/* Daily Glucose Profile calendar grid */}
@@ -1098,7 +1795,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         <div key={wIdx} className="grid grid-cols-7 gap-3">
                           {weekRow.map((cellDate, dIdx) => {
                             const dateStr = cellDate.toDateString();
-                            const dayEntries = entries.filter(e => new Date(e.date).toDateString() === dateStr);
+                            const dayEntries = displayEntries.filter(e => new Date(e.date).toDateString() === dateStr);
                             const dayTreatments = treatments.filter(t => {
                               const date = t.date || new Date(t.created_at).getTime();
                               return new Date(date).toDateString() === dateStr;
@@ -1161,7 +1858,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                       const start = dayDate.getTime();
                       const end = start + 24 * 60 * 60 * 1000 - 1;
 
-                      const dayEntries = entries.filter(e => e.date >= start && e.date <= end);
+                      const dayEntries = displayEntries.filter(e => e.date >= start && e.date <= end);
                       const dayTreatments = treatments.filter(t => {
                         const date = t.date || new Date(t.created_at).getTime();
                         return date >= start && date <= end;
@@ -1261,12 +1958,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   {statsSubTab === 'daily' ? (
                     <DailyStatsTable
                       days={getDaysArray()}
-                      entries={entries}
+                      entries={displayEntries}
                       units={units}
                     />
                   ) : (
                     <HourlyStatsTable
-                      entries={entries}
+                      entries={displayEntries}
                       units={units}
                     />
                   )}
@@ -1284,7 +1981,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
                   <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total CGM Readings</span>
-                    <div className="mt-1 text-2xl font-extrabold text-slate-800">{entries.length}</div>
+                    <div className="mt-1 text-2xl font-extrabold text-slate-800">{displayEntries.length}</div>
                     <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Readings over {dateRangeDays} days</div>
                   </div>
                   <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
