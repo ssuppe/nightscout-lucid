@@ -9,7 +9,7 @@ set dotenv-load
 SERVER_IP   := env_var_or_default("DEPLOY_SERVER_IP",   "your-server-ip")
 SERVER_USER := env_var_or_default("DEPLOY_SERVER_USER", "your-username")
 IMAGE_NAME  := "nightscout-clarity"
-ARTIFACT    := "./deploy-artifacts/clarity.tar.gz"
+ARTIFACT    := "./deploy-artifacts/clarity.tar"
 
 # --- LOCAL DEV ---
 # Start the Vite dev server
@@ -26,11 +26,11 @@ build:
     @echo "Building Docker image (base=/clarity/)..."
     docker build --build-arg VITE_BASE=/clarity/ -t {{IMAGE_NAME}}:latest .
 
-# Save the image to a gzip artifact (rsync-friendly)
+# Save the image to a raw tar artifact (rsync-friendly)
 package: build
     @echo "Packaging image to {{ARTIFACT}}..."
     @mkdir -p ./deploy-artifacts
-    docker save {{IMAGE_NAME}}:latest | gzip --rsyncable > {{ARTIFACT}}
+    docker save {{IMAGE_NAME}}:latest > {{ARTIFACT}}
     @echo "Done: {{ARTIFACT}}"
 
 # --- DEPLOY ---
@@ -38,16 +38,16 @@ package: build
 deploy: package
     @echo "Pushing artifact to {{SERVER_IP}}..."
     ssh {{SERVER_USER}}@{{SERVER_IP}} "mkdir -p ~/app/deploy-artifacts"
-    rsync -avhP {{ARTIFACT}} {{SERVER_USER}}@{{SERVER_IP}}:~/app/deploy-artifacts/clarity.tar.gz
+    rsync -avzhP {{ARTIFACT}} {{SERVER_USER}}@{{SERVER_IP}}:~/app/deploy-artifacts/clarity.tar
     @echo "Loading image and restarting clarity service on server..."
     ssh -t {{SERVER_USER}}@{{SERVER_IP}} " \
         cd ~/app && \
         echo '--- Loading image ---' && \
-        ((pv deploy-artifacts/clarity.tar.gz 2>/dev/null || cat deploy-artifacts/clarity.tar.gz) | docker load) && \
+        ((pv deploy-artifacts/clarity.tar 2>/dev/null || cat deploy-artifacts/clarity.tar) | docker load) && \
         echo '--- Restarting clarity container ---' && \
         docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps clarity && \
         echo '--- Cleaning up artifact ---' && \
-        rm -f deploy-artifacts/clarity.tar.gz && \
+        rm -f deploy-artifacts/clarity.tar && \
         echo '--- Done! https://goodnumbers.net/clarity ---'"
 
 # Tail logs for the clarity container on the server
