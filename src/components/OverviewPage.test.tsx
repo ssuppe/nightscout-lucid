@@ -54,6 +54,29 @@ describe('OverviewPage', () => {
     vi.mocked(mockClient.fetchTreatments).mockResolvedValue([]);
   };
 
+  /**
+   * 200 in-target readings + 1 very-low reading.
+   * timeInVeryLow = 1/201 = 0.497...% → rounds to 0 with Math.round.
+   * The <1% label must appear AND the bar segment must be rendered (not hidden).
+   */
+  const setupSparseVeryLowData = () => {
+    const now = Date.now();
+    const inTarget = Array.from({ length: 200 }, (_, i) => ({
+      _id: `t-${i}`,
+      date: now - i * 15 * 60 * 1000,
+      sgv: 110, // in target (70-180)
+      type: 'sgv',
+    }));
+    const veryLow = [{
+      _id: 'vl-1',
+      date: now - 201 * 15 * 60 * 1000,
+      sgv: 40,  // very low (<54)
+      type: 'sgv',
+    }];
+    vi.mocked(mockClient.fetchEntries).mockResolvedValue([...inTarget, ...veryLow]);
+    vi.mocked(mockClient.fetchTreatments).mockResolvedValue([]);
+  };
+
   it('renders loading state initially', async () => {
     setupMockData(120);
     render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
@@ -323,4 +346,22 @@ describe('OverviewPage', () => {
     expect(diffDays).toBeGreaterThanOrEqual(29);
     expect(diffDays).toBeLessThanOrEqual(31);
   });
+
+  it('displays <1% label and renders a visible sliver in the TIR stacked bar for very low category with 1 reading', async () => {
+    setupSparseVeryLowData();
+    const { container } = render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // Check that <1% label is shown for Very Low
+    expect(screen.getByText('<1%')).toBeInTheDocument();
+
+    // Check that the very-low bar segment (bg-[#9C0006]) is rendered in the DOM
+    const veryLowSegment = container.querySelector('.bg-\\[\\#9C0006\\]');
+    expect(veryLowSegment).toBeInTheDocument();
+    expect(veryLowSegment).toHaveStyle('height: 1%');
+  });
 });
+

@@ -286,6 +286,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     return `${pct}%`;
   };
 
+  const renderBarSegment = (pct: number, count: number, className: string) => {
+    if (pct === 0 && count === 0) return null;
+    const height = pct === 0 && count > 0 ? '1%' : `${pct}%`;
+    return <div style={{ height }} className={className} />;
+  };
+
   const latestUploadDateStr = displayEntries.length > 0 
     ? new Date(displayEntries[0].date).toLocaleDateString(undefined, {
         day: 'numeric',
@@ -571,11 +577,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         <div className="flex gap-5 items-center">
                           {/* Resistor-style stacked bar */}
                           <div className="flex h-[108px] w-[50px] flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
-                            {metrics.timeInVeryHigh > 0 && <div style={{ height: `${metrics.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
-                            {metrics.timeInHigh > 0 && <div style={{ height: `${metrics.timeInHigh}%` }} className="bg-[#FCD116]" />}
-                            {metrics.timeInTarget > 0 && <div style={{ height: `${metrics.timeInTarget}%` }} className="bg-[#72B100]" />}
-                            {metrics.timeInLow > 0 && <div style={{ height: `${metrics.timeInLow}%` }} className="bg-[#F04124]" />}
-                            {metrics.timeInVeryLow > 0 && <div style={{ height: `${metrics.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
+                            {renderBarSegment(metrics.timeInVeryHigh, displayEntries.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
+                            {renderBarSegment(metrics.timeInHigh, displayEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
+                            {renderBarSegment(metrics.timeInTarget, displayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
+                            {renderBarSegment(metrics.timeInLow, displayEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
+                            {renderBarSegment(metrics.timeInVeryLow, displayEntries.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
                           </div>
 
                           {/* Legends list */}
@@ -1188,11 +1194,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                   <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
                                   <div className="flex gap-4 items-center">
                                     <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
-                                      {metricsB.timeInVeryHigh > 0 && <div style={{ height: `${metricsB.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
-                                      {metricsB.timeInHigh > 0 && <div style={{ height: `${metricsB.timeInHigh}%` }} className="bg-[#FCD116]" />}
-                                      {metricsB.timeInTarget > 0 && <div style={{ height: `${metricsB.timeInTarget}%` }} className="bg-[#72B100]" />}
-                                      {metricsB.timeInLow > 0 && <div style={{ height: `${metricsB.timeInLow}%` }} className="bg-[#F04124]" />}
-                                      {metricsB.timeInVeryLow > 0 && <div style={{ height: `${metricsB.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
+                                      {renderBarSegment(metricsB.timeInVeryHigh, rawEntriesB.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
+                                      {renderBarSegment(metricsB.timeInHigh, rawEntriesB.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
+                                      {renderBarSegment(metricsB.timeInTarget, rawEntriesB.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
+                                      {renderBarSegment(metricsB.timeInLow, rawEntriesB.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
+                                      {renderBarSegment(metricsB.timeInVeryLow, rawEntriesB.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
                                     </div>
                                     <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
                                       <div className="flex items-center justify-between">
@@ -1363,11 +1369,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                   <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
                                   <div className="flex gap-4 items-center">
                                     <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
-                                      {metricsA.timeInVeryHigh > 0 && <div style={{ height: `${metricsA.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
-                                      {metricsA.timeInHigh > 0 && <div style={{ height: `${metricsA.timeInHigh}%` }} className="bg-[#FCD116]" />}
-                                      {metricsA.timeInTarget > 0 && <div style={{ height: `${metricsA.timeInTarget}%` }} className="bg-[#72B100]" />}
-                                      {metricsA.timeInLow > 0 && <div style={{ height: `${metricsA.timeInLow}%` }} className="bg-[#F04124]" />}
-                                      {metricsA.timeInVeryLow > 0 && <div style={{ height: `${metricsA.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
+                                      {renderBarSegment(metricsA.timeInVeryHigh, rawEntriesA.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
+                                      {renderBarSegment(metricsA.timeInHigh, rawEntriesA.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
+                                      {renderBarSegment(metricsA.timeInTarget, rawEntriesA.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
+                                      {renderBarSegment(metricsA.timeInLow, rawEntriesA.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
+                                      {renderBarSegment(metricsA.timeInVeryLow, rawEntriesA.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
                                     </div>
                                     <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
                                       <div className="flex items-center justify-between">
@@ -1672,11 +1678,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         <div className="flex gap-5 items-center">
                           {/* Vertical bar */}
                           <div className="flex h-36 w-10 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
-                            {metrics.timeInVeryHigh > 0 && <div style={{ height: `${metrics.timeInVeryHigh}%` }} className="bg-[#F29100]" />}
-                            {metrics.timeInHigh > 0 && <div style={{ height: `${metrics.timeInHigh}%` }} className="bg-[#FCD116]" />}
-                            {metrics.timeInTarget > 0 && <div style={{ height: `${metrics.timeInTarget}%` }} className="bg-[#72B100]" />}
-                            {metrics.timeInLow > 0 && <div style={{ height: `${metrics.timeInLow}%` }} className="bg-[#F04124]" />}
-                            {metrics.timeInVeryLow > 0 && <div style={{ height: `${metrics.timeInVeryLow}%` }} className="bg-[#9C0006]" />}
+                            {renderBarSegment(metrics.timeInVeryHigh, displayEntries.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
+                            {renderBarSegment(metrics.timeInHigh, displayEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
+                            {renderBarSegment(metrics.timeInTarget, displayEntries.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
+                            {renderBarSegment(metrics.timeInLow, displayEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
+                            {renderBarSegment(metrics.timeInVeryLow, displayEntries.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
                           </div>
 
                           {/* Legends list */}
