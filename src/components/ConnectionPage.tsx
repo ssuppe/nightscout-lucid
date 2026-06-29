@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Wifi, AlertCircle, HelpCircle } from 'lucide-react';
+import { Activity, Wifi, AlertCircle, HelpCircle, Eye, EyeOff } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 
 interface ConnectionPageProps {
@@ -26,6 +26,9 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
   const [loginMode, setLoginMode] = useState<'manual' | 'code'>('manual');
   const [accessCode, setAccessCode] = useState('');
   const [accessCodeError, setAccessCodeError] = useState<string | null>(null);
+
+  const [showToken, setShowToken] = useState(false);
+  const [showAccessCode, setShowAccessCode] = useState(false);
 
   const validateInputs = (): boolean => {
     setUrlValidationError(null);
@@ -190,13 +193,22 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
                   <div className="relative mt-2">
                     <input
                       id="ns-token"
-                      type="password"
+                      type={showToken ? 'text' : 'password'}
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                       placeholder="enter api token or hash secret"
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:border-[#72B100] focus:ring-2 focus:ring-[#72B100]/25"
+                      className="w-full rounded-lg border border-slate-300 bg-slate-50 pl-4 pr-10 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:border-[#72B100] focus:ring-2 focus:ring-[#72B100]/25"
                       disabled={loading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      aria-label="Toggle API Token visibility"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      disabled={loading}
+                    >
+                      {showToken ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
               </>
@@ -209,15 +221,24 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
                 <div className="relative mt-2">
                   <input
                     id="ns-code"
-                    type="password"
+                    type={showAccessCode ? 'text' : 'password'}
                     value={accessCode}
                     onChange={(e) => setAccessCode(e.target.value)}
                     placeholder="Enter nurse access code"
-                    className={`w-full rounded-lg border bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:ring-2 focus:ring-[#72B100]/25 ${
+                    className={`w-full rounded-lg border bg-slate-50 pl-4 pr-10 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:ring-2 focus:ring-[#72B100]/25 ${
                       accessCodeError ? 'border-red-500' : 'border-slate-300 focus:border-[#72B100]'
                     }`}
                     disabled={loading}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowAccessCode(!showAccessCode)}
+                    aria-label="Toggle Access Code visibility"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    disabled={loading}
+                  >
+                    {showAccessCode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
                 {accessCodeError && (
                   <p className="mt-2 flex items-center text-xs text-red-500">

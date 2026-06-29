@@ -39,7 +39,7 @@ describe('ConnectionPage', () => {
     render(<ConnectionPage onConnect={mockOnConnect} />);
 
     expect(screen.getByLabelText(/Nightscout URL/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/API Token/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('API Token')).toBeInTheDocument();
     expect(screen.getByLabelText(/Preferred Units/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Connect/i })).toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe('ConnectionPage', () => {
     fireEvent.change(urlInput, {
       target: { value: 'https://my-nightscout.herokuapp.com' },
     });
-    fireEvent.change(screen.getByLabelText(/API Token/i), {
+    fireEvent.change(screen.getByLabelText('API Token'), {
       target: { value: 'valid-secret' },
     });
     fireEvent.change(screen.getByLabelText(/Preferred Units/i), {
@@ -93,7 +93,7 @@ describe('ConnectionPage', () => {
     fireEvent.change(urlInput, {
       target: { value: 'https://my-nightscout.herokuapp.com' },
     });
-    fireEvent.change(screen.getByLabelText(/API Token/i), {
+    fireEvent.change(screen.getByLabelText('API Token'), {
       target: { value: 'invalid-token' },
     });
 
@@ -111,7 +111,7 @@ describe('ConnectionPage', () => {
     fireEvent.change(urlInput, {
       target: { value: 'https://cors-fail.com' },
     });
-    fireEvent.change(screen.getByLabelText(/API Token/i), {
+    fireEvent.change(screen.getByLabelText('API Token'), {
       target: { value: 'valid-token' },
     });
 
@@ -137,9 +137,9 @@ describe('ConnectionPage', () => {
 
     // Assert manual fields are hidden and Access Code input is visible
     expect(screen.queryByLabelText(/Nightscout URL/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Access Code/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Access Code')).toBeInTheDocument();
 
-    const codeInput = screen.getByLabelText(/Access Code/i);
+    const codeInput = screen.getByLabelText('Access Code');
     fireEvent.change(codeInput, { target: { value: 'WrongPassword!' } });
 
     const form = codeInput.closest('form')!;
@@ -155,7 +155,7 @@ describe('ConnectionPage', () => {
     const accessCodeTab = screen.getByRole('tab', { name: /Nurse Access Code/i });
     fireEvent.click(accessCodeTab);
 
-    const codeInput = screen.getByLabelText(/Access Code/i);
+    const codeInput = screen.getByLabelText('Access Code');
     fireEvent.change(codeInput, { target: { value: 'mock-access-code' } });
 
     const form = codeInput.closest('form')!;
@@ -169,5 +169,36 @@ describe('ConnectionPage', () => {
         expect.any(String)
       );
     });
+  });
+
+  it('toggles visibility of API Token input when show/hide button is clicked', () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+    const tokenInput = screen.getByLabelText('API Token') as HTMLInputElement;
+    expect(tokenInput.type).toBe('password');
+
+    // Click show button (using aria-label or specific test-id/icon check)
+    const toggleButton = screen.getByLabelText('Toggle API Token visibility');
+    fireEvent.click(toggleButton);
+    expect(tokenInput.type).toBe('text');
+
+    fireEvent.click(toggleButton);
+    expect(tokenInput.type).toBe('password');
+  });
+
+  it('toggles visibility of Access Code input when show/hide button is clicked', () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+    
+    const accessCodeTab = screen.getByRole('tab', { name: /Nurse Access Code/i });
+    fireEvent.click(accessCodeTab);
+
+    const codeInput = screen.getByLabelText('Access Code') as HTMLInputElement;
+    expect(codeInput.type).toBe('password');
+
+    const toggleButton = screen.getByLabelText('Toggle Access Code visibility');
+    fireEvent.click(toggleButton);
+    expect(codeInput.type).toBe('text');
+
+    fireEvent.click(toggleButton);
+    expect(codeInput.type).toBe('password');
   });
 });
