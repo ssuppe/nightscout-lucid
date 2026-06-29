@@ -436,6 +436,30 @@ describe('OverviewPage', () => {
     expect(elements.length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('35%')).not.toBeInTheDocument();
   });
+
+  it('includes entries from the early hours of the oldest day (M3)', async () => {
+    // Generate an entry at exactly midnight (00:00:00.000) 14 days ago
+    const now = new Date();
+    const oldestEntryTime = new Date(now);
+    oldestEntryTime.setDate(now.getDate() - 14);
+    oldestEntryTime.setHours(0, 0, 0, 0);
+    
+    const mockEntries = [
+      { _id: 'oldest-early', date: oldestEntryTime.getTime(), sgv: 120, type: 'sgv' }
+    ];
+    vi.mocked(mockClient.fetchEntries).mockResolvedValue(mockEntries);
+    vi.mocked(mockClient.fetchTreatments).mockResolvedValue([]);
+
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // Total CGM Readings should display "1" if included, or "0" if filtered out.
+    const readingsCard = screen.getByText('Total CGM Readings').closest('div');
+    expect(readingsCard).toHaveTextContent('1');
+  });
 });
 
 

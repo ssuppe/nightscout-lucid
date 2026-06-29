@@ -127,6 +127,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
     const limitDate = new Date();
     limitDate.setDate(limitDate.getDate() - dateRangeDays);
+    limitDate.setHours(0, 0, 0, 0);
     return entries.filter(e => e.date >= limitDate.getTime());
   }, [entries, dateRangeDays, isCompareNow]);
 
