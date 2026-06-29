@@ -302,9 +302,10 @@ export function calculateHourlyTIR(entries: NightscoutEntry[]): HourlyTIR[] {
         timeLabel,
         veryLow: 0,
         low: 0,
-        target: 100, // Default to 100% target if no data
+        target: 0,
         high: 0,
         veryHigh: 0,
+        noData: true,
       });
       continue;
     }

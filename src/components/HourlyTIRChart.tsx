@@ -26,6 +26,7 @@ export const HourlyTIRChart: React.FC<HourlyTIRChartProps> = ({ hourlyData, days
     const targetData = hourlyData.map(d => d.target);
     const highData = hourlyData.map(d => d.high);
     const veryHighData = hourlyData.map(d => d.veryHigh);
+    const noDataData = hourlyData.map(d => d.noData ? 100 : 0);
 
     const option: echarts.EChartsOption = {
       title: {
@@ -51,6 +52,14 @@ export const HourlyTIRChart: React.FC<HourlyTIRChartProps> = ({ hourlyData, days
           const time = params[0].axisValue;
           const dataIndex = params[0].dataIndex;
           const d = hourlyData[dataIndex];
+          if (d.noData) {
+            return `
+              <div style="font-family: sans-serif; font-size: 12px; padding: 4px;">
+                <div style="font-weight: bold; margin-bottom: 4px; color: #1e293b;">Time Slot: ${time}</div>
+                <div style="color: #64748b; font-style: italic;">No readings recorded in this hour slot</div>
+              </div>
+            `;
+          }
           return `
             <div style="font-family: sans-serif; font-size: 12px; padding: 4px;">
               <div style="font-weight: bold; margin-bottom: 6px; color: #1e293b;">Time Slot: ${time}</div>
@@ -87,7 +96,7 @@ export const HourlyTIRChart: React.FC<HourlyTIRChartProps> = ({ hourlyData, days
           fontSize: 10,
           color: '#64748b'
         },
-        data: ['Very High', 'High', 'In Range', 'Low', 'Very Low']
+        data: ['Very High', 'High', 'In Range', 'Low', 'Very Low', 'No Data']
       },
       grid: {
         left: '4%',
@@ -127,6 +136,14 @@ export const HourlyTIRChart: React.FC<HourlyTIRChartProps> = ({ hourlyData, days
         }
       },
       series: [
+        {
+          name: 'No Data',
+          type: 'bar',
+          stack: 'TIR',
+          color: '#cbd5e1', // neutral light grey
+          emphasis: { focus: 'series' },
+          data: noDataData
+        },
         {
           name: 'Very Low',
           type: 'bar',

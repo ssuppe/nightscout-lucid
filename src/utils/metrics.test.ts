@@ -188,8 +188,9 @@ describe('Glucose Metrics Calculations', () => {
       expect(hour10.high).toBe(25);     // 1/4
       expect(hour10.veryHigh).toBe(0);
 
-      // Empty hours default to 100% target
-      expect(hourlyData[0].target).toBe(100);
+      // Empty hours should have noData: true and 0% target
+      expect(hourlyData[0].noData).toBe(true);
+      expect(hourlyData[0].target).toBe(0);
       expect(hourlyData[0].veryLow).toBe(0);
     });
   });
