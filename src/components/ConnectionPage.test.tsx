@@ -121,4 +121,53 @@ describe('ConnectionPage', () => {
     expect(await screen.findByText(/CORS settings/i)).toBeInTheDocument();
     expect(mockOnConnect).not.toHaveBeenCalled();
   });
+
+  it('renders tab switcher for login modes', () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+    expect(screen.getByRole('tab', { name: /Nightscout Login/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Access Code/i })).toBeInTheDocument();
+  });
+
+  it('shows error when incorrect access code is entered on Access Code tab', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+    
+    // Switch to Access Code tab
+    const accessCodeTab = screen.getByRole('tab', { name: /Access Code/i });
+    fireEvent.click(accessCodeTab);
+
+    // Assert manual fields are hidden and Access Code input is visible
+    expect(screen.queryByLabelText(/Nightscout URL/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Access Code/i)).toBeInTheDocument();
+
+    const codeInput = screen.getByLabelText(/Access Code/i);
+    fireEvent.change(codeInput, { target: { value: 'WrongPassword!' } });
+
+    const form = codeInput.closest('form')!;
+    fireEvent.submit(form);
+
+    expect(await screen.findByText(/Invalid access code/i)).toBeInTheDocument();
+    expect(mockOnConnect).not.toHaveBeenCalled();
+  });
+
+  it('successfully logs in with the correct access code using the proxy URL', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+    
+    const accessCodeTab = screen.getByRole('tab', { name: /Access Code/i });
+    fireEvent.click(accessCodeTab);
+
+    const codeInput = screen.getByLabelText(/Access Code/i);
+    fireEvent.change(codeInput, { target: { value: 'mock-access-code' } });
+
+    const form = codeInput.closest('form')!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(mockOnConnect).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.stringContaining('/api/nurse'),
+        'mock-access-code',
+        expect.any(String)
+      );
+    });
+  });
 });

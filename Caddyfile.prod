@@ -5,6 +5,22 @@
 :80 {
     root * /srv
 
+    # Validate access code for nurse endpoint
+    @unauthorized_nurse {
+        path /api/nurse/*
+        not header X-Nurse-Access-Code "mock-access-code"
+    }
+    respond @unauthorized_nurse "Unauthorized" 401
+
+    # Route authorized nurse requests to Nightscout
+    route /api/nurse/* {
+        uri strip_prefix /api/nurse
+        rewrite * {path}?{query}&token=mock-nurse-token
+        reverse_proxy https://mock-nurse-nightscout.example.com {
+            header_up Host {upstream_hostport}
+        }
+    }
+
     # SPA fallback: unknown paths return index.html under the /clarity sub-path
     try_files {path} /clarity/index.html
 

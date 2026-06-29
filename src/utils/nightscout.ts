@@ -80,6 +80,9 @@ export class NightscoutClient {
   }
 
   public getAuthParams(): Record<string, string> {
+    if (this.baseUrl.includes('/api/nurse')) {
+      return {};
+    }
     if (!this.token || this.token.includes('.')) {
       return {};
     }
@@ -92,6 +95,11 @@ export class NightscoutClient {
   }
 
   public async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {};
+    if (this.baseUrl.includes('/api/nurse')) {
+      headers['X-Nurse-Access-Code'] = this.token;
+      return headers;
+    }
     if (this.token && this.token.includes('.')) {
       return { Authorization: `Bearer ${this.token}` };
     }

@@ -23,9 +23,26 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [urlValidationError, setUrlValidationError] = useState<string | null>(null);
 
+  const [loginMode, setLoginMode] = useState<'manual' | 'code'>('manual');
+  const [accessCode, setAccessCode] = useState('');
+  const [accessCodeError, setAccessCodeError] = useState<string | null>(null);
+
   const validateInputs = (): boolean => {
     setUrlValidationError(null);
+    setAccessCodeError(null);
     setError(null);
+
+    if (loginMode === 'code') {
+      if (!accessCode.trim()) {
+        setAccessCodeError('Access Code is required');
+        return false;
+      }
+      if (accessCode.trim() !== 'mock-access-code') {
+        setAccessCodeError('Invalid access code. Please try again.');
+        return false;
+      }
+      return true;
+    }
 
     let cleanUrl = url.trim();
     if (!cleanUrl) {
@@ -54,8 +71,17 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
     setLoading(true);
     setError(null);
 
-    const cleanUrl = url.trim();
-    const cleanToken = token.trim();
+    let cleanUrl = '';
+    let cleanToken = '';
+
+    if (loginMode === 'code') {
+      // Use proxy endpoint and pass the access code as the token
+      cleanUrl = window.location.origin + '/api/nurse';
+      cleanToken = accessCode.trim();
+    } else {
+      cleanUrl = url.trim();
+      cleanToken = token.trim();
+    }
 
     try {
       const client = new NightscoutClient(cleanUrl, cleanToken);
@@ -92,55 +118,115 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
             </p>
           </div>
 
+          {/* Tab Switcher */}
+          <div className="mb-6 flex rounded-lg bg-slate-100 p-1">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={loginMode === 'manual'}
+              onClick={() => setLoginMode('manual')}
+              className={`flex-1 rounded-md py-2 text-center text-xs font-bold transition duration-200 cursor-pointer ${
+                loginMode === 'manual'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Nightscout Login
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={loginMode === 'code'}
+              onClick={() => setLoginMode('code')}
+              className={`flex-1 rounded-md py-2 text-center text-xs font-bold transition duration-200 cursor-pointer ${
+                loginMode === 'code'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Access Code
+            </button>
+          </div>
+
           {/* Connection Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Nightscout URL Input */}
-            <div>
-              <label htmlFor="ns-url" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                Nightscout URL
-              </label>
-              <div className="relative mt-2">
-                <input
-                  id="ns-url"
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://your-nightscout.herokuapp.com"
-                  className={`w-full rounded-lg border bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:ring-2 focus:ring-[#72B100]/25 ${
-                    urlValidationError ? 'border-red-500' : 'border-slate-300 focus:border-[#72B100]'
-                  }`}
-                  disabled={loading}
-                />
-              </div>
-              {urlValidationError && (
-                <p className="mt-2 flex items-center text-xs text-red-500">
-                  <AlertCircle className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
-                  {urlValidationError}
-                </p>
-              )}
-            </div>
+            {loginMode === 'manual' ? (
+              <>
+                {/* Nightscout URL Input */}
+                <div>
+                  <label htmlFor="ns-url" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Nightscout URL
+                  </label>
+                  <div className="relative mt-2">
+                    <input
+                      id="ns-url"
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://your-nightscout.herokuapp.com"
+                      className={`w-full rounded-lg border bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:ring-2 focus:ring-[#72B100]/25 ${
+                        urlValidationError ? 'border-red-500' : 'border-slate-300 focus:border-[#72B100]'
+                      }`}
+                      disabled={loading}
+                    />
+                  </div>
+                  {urlValidationError && (
+                    <p className="mt-2 flex items-center text-xs text-red-500">
+                      <AlertCircle className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                      {urlValidationError}
+                    </p>
+                  )}
+                </div>
 
-            {/* API Token Input */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label htmlFor="ns-token" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                  API Token
+                {/* API Token Input */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="ns-token" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                      API Token
+                    </label>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-widest">(API Secret or JWT)</span>
+                  </div>
+                  <div className="relative mt-2">
+                    <input
+                      id="ns-token"
+                      type="password"
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
+                      placeholder="enter api token or hash secret"
+                      className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:border-[#72B100] focus:ring-2 focus:ring-[#72B100]/25"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Access Code Input */
+              <div>
+                <label htmlFor="ns-code" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Access Code
                 </label>
-                <span className="text-[10px] text-slate-400 uppercase tracking-widest">(API Secret or JWT)</span>
+                <div className="relative mt-2">
+                  <input
+                    id="ns-code"
+                    type="password"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value)}
+                    placeholder="Enter nurse access code"
+                    className={`w-full rounded-lg border bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:ring-2 focus:ring-[#72B100]/25 ${
+                      accessCodeError ? 'border-red-500' : 'border-slate-300 focus:border-[#72B100]'
+                    }`}
+                    disabled={loading}
+                  />
+                </div>
+                {accessCodeError && (
+                  <p className="mt-2 flex items-center text-xs text-red-500">
+                    <AlertCircle className="mr-1.5 h-3.5 w-3.5 flex-shrink-0" />
+                    {accessCodeError}
+                  </p>
+                )}
               </div>
-              <div className="relative mt-2">
-                <input
-                  id="ns-token"
-                  type="password"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="enter api token or hash secret"
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition duration-200 outline-none focus:bg-white focus:border-[#72B100] focus:ring-2 focus:ring-[#72B100]/25"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+            )}
 
             {/* Preferred Units Input */}
             <div>
