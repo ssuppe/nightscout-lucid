@@ -46,8 +46,6 @@ deploy: package
         ((pv deploy-artifacts/clarity.tar 2>/dev/null || cat deploy-artifacts/clarity.tar) | docker load) && \
         echo '--- Restarting clarity container ---' && \
         docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps clarity && \
-        echo '--- Cleaning up artifact ---' && \
-        rm -f deploy-artifacts/clarity.tar && \
         echo '--- Done! https://goodnumbers.net/clarity ---'"
 
 # Tail logs for the clarity container on the server
