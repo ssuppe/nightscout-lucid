@@ -2,7 +2,7 @@
 
 A modern, Dexcom Clarity-inspired glucose analytics dashboard that connects directly to your personal [Nightscout](https://nightscout.github.io/) instance. 
 
-This runs in a Docker container which serves a client side report UI that is reminscent of Decom Clarity. The whole application runs in browser, no information is stored in the cloud.
+This runs in a Docker container which serves a client side report UI that is reminscent of Dexcom Clarity. The whole application runs in browser, no information is stored in the cloud.
 
 ---
 
@@ -16,6 +16,12 @@ This runs in a Docker container which serves a client side report UI that is rem
 - **Units toggle**  -  Switch between mg/dL and mmol/L at any time
 - **Date range**  -  7, 14, 30, or 90-day windows
 - **Session-only**  -  Credentials are held in memory; nothing is persisted to a server
+
+---
+
+## AI-driven development
+
+Please note: This software was written primarily with AI, driven by a former software engineer. It's been reviewed by me, and there are many tests to doublecheck the math. But be sure to verify the numbers yourself (eg, sanity check with your Nightscout instance).
 
 ---
 
