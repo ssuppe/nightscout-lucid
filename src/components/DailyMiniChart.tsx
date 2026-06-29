@@ -232,7 +232,7 @@ export const DailyMiniChart: React.FC<DailyMiniChartProps> = ({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [entries, treatments, units, dayStart]);
+  }, [entries, treatments, units, dayStart, compact]);
 
   return (
     <div className={compact ? 'absolute inset-0' : 'w-full'}>
