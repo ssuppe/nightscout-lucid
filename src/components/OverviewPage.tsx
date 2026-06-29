@@ -566,7 +566,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#F29100]" />
                                 <span>Very high</span>
                               </div>
-                              <span className="text-slate-800">{formatPctLabel(metrics.timeInVeryHigh, entries.filter(e => e.sgv > 250).length)}</span>
+                              <span className="text-slate-800">{formatPctLabel(metrics.timeInVeryHigh, displayEntries.filter(e => e.sgv > 250).length)}</span>
                             </div>
 
                             <div className="flex items-center justify-between">
@@ -574,7 +574,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#FCD116]" />
                                 <span>High</span>
                               </div>
-                              <span className="text-slate-800">{formatPctLabel(metrics.timeInHigh, entries.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                              <span className="text-slate-800">{formatPctLabel(metrics.timeInHigh, displayEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
                             </div>
 
                             <div className="flex items-center justify-between">
@@ -590,7 +590,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#F04124]" />
                                 <span>Low</span>
                               </div>
-                              <span className="text-slate-800">{formatPctLabel(metrics.timeInLow, entries.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                              <span className="text-slate-800">{formatPctLabel(metrics.timeInLow, displayEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
                             </div>
 
                             <div className="flex items-center justify-between">
@@ -598,7 +598,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span className="w-2.5 h-2.5 rounded-full bg-[#9C0006]" />
                                 <span>Very low</span>
                               </div>
-                              <span className="text-slate-800">{formatPctLabel(metrics.timeInVeryLow, entries.filter(e => e.sgv < 54).length)}</span>
+                              <span className="text-slate-800">{formatPctLabel(metrics.timeInVeryLow, displayEntries.filter(e => e.sgv < 54).length)}</span>
                             </div>
                           </div>
                         </div>
@@ -1668,7 +1668,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span>Very High</span>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInVeryHigh, entries.filter(e => e.sgv > 250).length)}</span>
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInVeryHigh, displayEntries.filter(e => e.sgv > 250).length)}</span>
                                 <span className="text-slate-400 text-[10px] w-14 text-right">Goal &lt; 5%</span>
                               </div>
                             </div>
@@ -1679,7 +1679,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span>High</span>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInHigh, entries.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInHigh, displayEntries.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
                                 <span className="text-slate-400 text-[10px] w-14 text-right">-</span>
                               </div>
                             </div>
@@ -1701,7 +1701,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span>Low</span>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInLow, entries.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInLow, displayEntries.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
                                 <span className="text-slate-400 text-[10px] w-14 text-right">Goal &lt; 4%</span>
                               </div>
                             </div>
@@ -1712,7 +1712,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                                 <span>Very Low</span>
                               </div>
                               <div className="flex items-center gap-4">
-                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInVeryLow, entries.filter(e => e.sgv < 54).length)}</span>
+                                <span className="text-slate-800 font-black">{formatPctLabel(metrics.timeInVeryLow, displayEntries.filter(e => e.sgv < 54).length)}</span>
                                 <span className="text-slate-400 text-[10px] w-14 text-right">Goal &lt; 1%</span>
                               </div>
                             </div>
