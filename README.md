@@ -36,12 +36,28 @@ Please note: This software was written primarily with AI, driven by a former sof
 
 ### Setup
 
-```bash
-npm install
-npm run dev
-```
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-The app opens at `http://localhost:5173`. Enter your Nightscout URL and API token on the connection screen.
+2. **Configure environment variables (Optional):**
+   Copy `.env.example` to `.env` and fill in the values if you want to configure local server credentials or test the nurse access code proxy feature:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+   The app opens at `http://localhost:5173`. Enter your Nightscout URL and API token on the connection screen.
+
+4. **Run via Docker (Alternative):**
+   To test the production container locally on `http://localhost:8120/`:
+   ```bash
+   just run-local
+   ```
 
 ### Testing
 
