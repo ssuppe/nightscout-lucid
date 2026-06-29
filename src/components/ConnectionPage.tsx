@@ -40,10 +40,6 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
         setAccessCodeError('Access Code is required');
         return false;
       }
-      if (accessCode.trim() !== 'mock-access-code') {
-        setAccessCodeError('Invalid access code. Please try again.');
-        return false;
-      }
       return true;
     }
 
@@ -96,7 +92,11 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
       // If successful, invoke callback
       onConnect(client, cleanUrl, cleanToken, units);
     } catch (err: any) {
-      setError(err?.message || 'Failed to connect to Nightscout');
+      if (loginMode === 'code') {
+        setError('Invalid access code. Please try again.');
+      } else {
+        setError(err?.message || 'Failed to connect to Nightscout');
+      }
     } finally {
       setLoading(false);
     }

@@ -16,6 +16,9 @@ vi.mock('../utils/nightscout', async (importOriginal) => {
           if (token === 'invalid-token') {
             throw new Error('Nightscout authentication failed');
           }
+          if (url.includes('/api/nurse') && token !== 'mock-access-code') {
+            throw new Error('Invalid access code');
+          }
           if (url.includes('cors-fail')) {
             throw new Error('Network error: CORS settings blocked the request');
           }

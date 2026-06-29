@@ -8,13 +8,13 @@
     # Route authorized nurse requests to Nightscout
     handle /clarity/api/nurse/* {
         @unauthorized_nurse {
-            not header X-Nurse-Access-Code "mock-access-code"
+            not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE}"
         }
         respond @unauthorized_nurse "Unauthorized" 401
 
         uri strip_prefix /clarity/api/nurse
-        rewrite * {path}?{query}&token=mock-nurse-token
-        reverse_proxy https://mock-nurse-nightscout.example.com {
+        rewrite * {path}?{query}&token={$NURSE_NIGHTSCOUT_TOKEN}
+        reverse_proxy {$NURSE_NIGHTSCOUT_URL} {
             header_up Host {upstream_hostport}
         }
     }

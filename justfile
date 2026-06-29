@@ -11,6 +11,10 @@ SERVER_USER := env_var_or_default("DEPLOY_SERVER_USER", "your-username")
 IMAGE_NAME  := "nightscout-clarity"
 ARTIFACT    := "./deploy-artifacts/clarity.tar"
 
+NURSE_ACCESS_CODE      := env_var_or_default("NURSE_ACCESS_CODE", "")
+NURSE_NIGHTSCOUT_URL   := env_var_or_default("NURSE_NIGHTSCOUT_URL", "")
+NURSE_NIGHTSCOUT_TOKEN := env_var_or_default("NURSE_NIGHTSCOUT_TOKEN", "")
+
 # --- LOCAL DEV ---
 # Start the Vite dev server
 dev:
@@ -45,6 +49,9 @@ deploy: package
         echo '--- Loading image ---' && \
         ((pv deploy-artifacts/clarity.tar 2>/dev/null || cat deploy-artifacts/clarity.tar) | docker load) && \
         echo '--- Restarting clarity container ---' && \
+        NURSE_ACCESS_CODE='{{NURSE_ACCESS_CODE}}' \
+        NURSE_NIGHTSCOUT_URL='{{NURSE_NIGHTSCOUT_URL}}' \
+        NURSE_NIGHTSCOUT_TOKEN='{{NURSE_NIGHTSCOUT_TOKEN}}' \
         docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps clarity && \
         echo '--- Done! https://goodnumbers.net/clarity ---'"
 
