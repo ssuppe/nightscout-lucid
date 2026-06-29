@@ -2054,36 +2054,33 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             </div>
           )}
 
-          {/* Dexcom EU Regulatory Footer Block */}
+          {/* Open Source Footer Block */}
           <footer className="mt-8 pt-8 border-t border-slate-200/60 pb-12 text-slate-400 font-sans font-semibold text-[10px] leading-relaxed select-none shrink-0 text-left">
-            <div className="flex flex-col md:flex-row gap-6 md:justify-between items-start">
+            <div className="flex flex-col md:flex-row gap-6 md:justify-between items-start md:items-center">
               
-              {/* Left Column: Logo & Copyright */}
-              <div className="space-y-4">
-                <a href="#" className="inline-block" onClick={(e) => e.preventDefault()}>
-                  <span className="font-black text-slate-500 text-sm tracking-tight">NIGHTSCOUT LUCID</span>
-                </a>
+              {/* Left Column: Logo & License */}
+              <div className="space-y-2">
+                <div className="font-black text-slate-500 text-sm tracking-tight">NIGHTSCOUT LUCID</div>
                 <div>
                   <div>© 2026 Nightscout Lucid Contributors.</div>
-                  <div className="mt-2 text-slate-400 font-medium">UK RP: MDSS-UK RP LIMITED</div>
-                  <div className="text-slate-400/80 font-medium">Parkway House, Palatine Rd, Northenden, Manchester M22 4DB, UK</div>
+                  <div className="text-slate-400/80 font-medium mt-1">
+                    Released under the <a href="https://github.com/ssuppe/nightscout-lucid/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-700 underline decoration-dotted">GNU AGPLv3 License</a>.
+                  </div>
                 </div>
               </div>
 
-              {/* Right Column: Policy Links and Attribution */}
-              <div className="flex-1 md:max-w-2xl space-y-3 md:text-right">
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 md:justify-end text-[10px] font-bold text-slate-500">
-                  <a href="#" className="hover:text-slate-700 transition">Contact Us</a>
-                  <a href="#" className="hover:text-slate-700 transition">Terms of Use</a>
-                  <a href="#" className="hover:text-slate-700 transition">Privacy Policy</a>
-                  <a href="#" className="hover:text-slate-700 transition">Safety Information</a>
-                  <a href="#" className="hover:text-slate-700 transition">Uploader Software</a>
+              {/* Right Column: GitHub Repository Link & Version */}
+              <div className="space-y-1 md:text-right">
+                <div className="font-bold text-slate-500">
+                  <a href="https://github.com/ssuppe/nightscout-lucid" target="_blank" rel="noopener noreferrer" className="hover:text-slate-700 transition inline-flex items-center gap-1 md:justify-end">
+                    <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.162 22 16.418 22 12c0-5.523-4.527-10-10-10z" />
+                    </svg>
+                    GitHub Repository
+                  </a>
                 </div>
-                <p className="text-slate-400/85">
-                  Dexcom and Dexcom Clarity are trademarks of Dexcom, Inc. Nightscout Lucid is an independent open-source project.
-                </p>
                 <div className="text-slate-400/80 font-medium">
-                  Nightscout Lucid v1.0.0 • DOM 2026-06-28
+                  Nightscout Lucid v1.0.0
                 </div>
               </div>
 
