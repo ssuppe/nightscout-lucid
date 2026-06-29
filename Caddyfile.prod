@@ -20,7 +20,7 @@
     }
 
     # Serve static files and fallback for SPA routing
-    handle /clarity/* {
+    handle /clarity* {
         try_files {path} /clarity/index.html
         file_server
     }
