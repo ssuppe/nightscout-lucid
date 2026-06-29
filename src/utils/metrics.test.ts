@@ -59,6 +59,36 @@ describe('Glucose Metrics Calculations', () => {
     expect(metrics.timeInVeryHigh).toBe(20); // 1/5 = 20%
   });
 
+  it('TIR percentages always sum to exactly 100 (largest-remainder rounding)', () => {
+    // 3 entries: 1 very-low (50), 1 target (100), 1 high (200)
+    // Raw floats: veryLow=33.33%, target=33.33%, high=33.33% — naive rounding gives 33+33+33=99
+    const entries = createMockEntries([50, 100, 200]);
+    const metrics = calculateGlucoseMetrics(entries, GlucoseUnit.MGDL);
+
+    const sum =
+      metrics.timeInVeryHigh +
+      metrics.timeInHigh +
+      metrics.timeInTarget +
+      metrics.timeInLow +
+      metrics.timeInVeryLow;
+    expect(sum).toBe(100);
+  });
+
+  it('TIR percentages sum to exactly 100 for a 7-entry dataset (another rounding edge case)', () => {
+    // 7 equal entries across 5 buckets: 1 each for vL, L, T, H, vH, plus 2 extra in target
+    // counts: vL=1, L=1, T=3, H=1, vH=1 → raw: 14.28, 14.28, 42.85, 14.28, 14.28 — sums vary by rounding
+    const entries = createMockEntries([50, 60, 100, 120, 140, 200, 300]);
+    const metrics = calculateGlucoseMetrics(entries, GlucoseUnit.MGDL);
+
+    const sum =
+      metrics.timeInVeryHigh +
+      metrics.timeInHigh +
+      metrics.timeInTarget +
+      metrics.timeInLow +
+      metrics.timeInVeryLow;
+    expect(sum).toBe(100);
+  });
+
   it('calculates GMI correctly in mg/dL', () => {
     // Mean is 150. GMI = 3.31 + 0.02392 * 150 = 6.898% (rounds to 6.9%)
     const entries = createMockEntries([150, 150, 150]);

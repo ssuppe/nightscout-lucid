@@ -21,6 +21,31 @@ function roundTo(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+/**
+ * Distribute `total` integer percentage points across N buckets using the
+ * Largest Remainder Method, so the values always sum to exactly `total`
+ * (default 100). Inputs are raw float percentages (0–100 range).
+ */
+function largestRemainder(
+  rawFloats: number[],
+  total = 100
+): number[] {
+  const floored = rawFloats.map(Math.floor);
+  const remainders = rawFloats.map((v, i) => v - floored[i]);
+  let deficit = total - floored.reduce((a, b) => a + b, 0);
+
+  // Sort indices by descending remainder, distribute remaining points
+  const order = remainders
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => b.r - a.r);
+
+  for (let k = 0; k < deficit; k++) {
+    floored[order[k].i] += 1;
+  }
+
+  return floored;
+}
+
 export function calculateGlucoseMetrics(
   entries: NightscoutEntry[],
   units: GlucoseUnit
@@ -82,11 +107,15 @@ export function calculateGlucoseMetrics(
     }
   });
 
-  const timeInVeryLow = roundTo((veryLowCount / count) * 100, 0);
-  const timeInLow = roundTo((lowCount / count) * 100, 0);
-  const timeInTarget = roundTo((targetCount / count) * 100, 0);
-  const timeInHigh = roundTo((highCount / count) * 100, 0);
-  const timeInVeryHigh = roundTo((veryHighCount / count) * 100, 0);
+  // Use largest-remainder method so the 5 buckets always sum to exactly 100%
+  const [timeInVeryLow, timeInLow, timeInTarget, timeInHigh, timeInVeryHigh] =
+    largestRemainder([
+      (veryLowCount / count) * 100,
+      (lowCount / count) * 100,
+      (targetCount / count) * 100,
+      (highCount / count) * 100,
+      (veryHighCount / count) * 100,
+    ]);
 
   // GMI calculation (from mean in mg/dL)
   // GMI (%) = 3.31 + 0.02392 * MeanGlucose(mg/dL)
@@ -300,11 +329,14 @@ export function calculateHourlyTIR(entries: NightscoutEntry[]): HourlyTIR[] {
       }
     });
 
-    const veryLow = roundTo((veryLowCount / count) * 100, 0);
-    const low = roundTo((lowCount / count) * 100, 0);
-    const target = roundTo((targetCount / count) * 100, 0);
-    const high = roundTo((highCount / count) * 100, 0);
-    const veryHigh = roundTo((veryHighCount / count) * 100, 0);
+    // Use largest-remainder method so the 5 buckets always sum to exactly 100%
+    const [veryLow, low, target, high, veryHigh] = largestRemainder([
+      (veryLowCount / count) * 100,
+      (lowCount / count) * 100,
+      (targetCount / count) * 100,
+      (highCount / count) * 100,
+      (veryHighCount / count) * 100,
+    ]);
 
     result.push({
       hour,
