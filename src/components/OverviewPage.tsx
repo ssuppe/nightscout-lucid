@@ -289,13 +289,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   };
 
   const weekdays = [
-    { label: 'Sun', value: 0 },
     { label: 'Mon', value: 1 },
     { label: 'Tue', value: 2 },
     { label: 'Wed', value: 3 },
     { label: 'Thu', value: 4 },
     { label: 'Fri', value: 5 },
-    { label: 'Sat', value: 6 }
+    { label: 'Sat', value: 6 },
+    { label: 'Sun', value: 0 }
   ];
 
   const formatPctLabel = (pct: number, count: number) => {

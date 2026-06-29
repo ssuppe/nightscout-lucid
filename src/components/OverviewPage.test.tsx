@@ -496,6 +496,32 @@ describe('OverviewPage', () => {
     expect(screen.getByText('100 mg/dL')).toBeInTheDocument();
     expect(screen.getByText('200 mg/dL')).toBeInTheDocument();
   });
+
+  it('renders weekdays selector starting from Monday (L1)', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const overlayTabBtn = screen.getByRole('button', { name: 'Overlay' });
+    fireEvent.click(overlayTabBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Days of Week')).toBeInTheDocument();
+    });
+
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weekdayCheckboxes = dayLabels.map(label => screen.getByLabelText(label));
+    
+    // Verify order in the DOM (Mon should be before Tue, etc.)
+    for (let i = 0; i < weekdayCheckboxes.length - 1; i++) {
+      const current = weekdayCheckboxes[i];
+      const next = weekdayCheckboxes[i + 1];
+      expect(current.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
 });
 
 
