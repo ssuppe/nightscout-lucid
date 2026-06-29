@@ -51,15 +51,32 @@ export enum GlucoseUnit {
   MMOL = 'mmol/L',
 }
 
+/**
+ * Explicit token type — avoids misclassifying hyphenated API secrets as
+ * Nightscout Access Tokens. Defaults to AUTO for backward compatibility.
+ */
+export enum TokenType {
+  /** Heuristic: infer from token content (legacy behaviour). */
+  AUTO = 'auto',
+  /** Plain-text API secret — sent as `api_secret=` query param. */
+  API_SECRET = 'api_secret',
+  /** Nightscout Access Token (subject-hash) — sent as `token=` query param. */
+  ACCESS_TOKEN = 'access_token',
+  /** JWT — sent as `Authorization: Bearer` header. */
+  JWT = 'jwt',
+}
+
 export class NightscoutClient {
   private baseUrl: string;
   private token: string;
+  private tokenType: TokenType;
 
-  constructor(url: string, token: string) {
+  constructor(url: string, token: string, tokenType: TokenType = TokenType.AUTO) {
     this.validateUrl(url);
     // Remove trailing slash if present
     this.baseUrl = url.replace(/\/$/, '');
     this.token = token;
+    this.tokenType = tokenType;
   }
 
   public getBaseUrl(): string {
@@ -83,15 +100,16 @@ export class NightscoutClient {
     if (this.baseUrl.includes('/api/nurse')) {
       return {};
     }
-    if (!this.token || this.token.includes('.')) {
-      return {};
+    // Explicit type takes priority over heuristic
+    const effectiveType = this.resolveTokenType();
+    if (effectiveType === TokenType.API_SECRET) {
+      return { api_secret: this.token };
     }
-    // Heuristic: Access Tokens typically contain a hyphen (e.g., subject-16charhash)
-    if (this.token.includes('-')) {
+    if (effectiveType === TokenType.ACCESS_TOKEN) {
       return { token: this.token };
     }
-    // Otherwise, treat as master API_SECRET
-    return { api_secret: this.token };
+    // JWT is handled via header
+    return {};
   }
 
   public async getAuthHeaders(): Promise<Record<string, string>> {
@@ -100,10 +118,25 @@ export class NightscoutClient {
       headers['X-Nurse-Access-Code'] = this.token;
       return headers;
     }
-    if (this.token && this.token.includes('.')) {
+    const effectiveType = this.resolveTokenType();
+    if (effectiveType === TokenType.JWT) {
       return { Authorization: `Bearer ${this.token}` };
     }
     return {};
+  }
+
+  /**
+   * Resolves the effective TokenType. When AUTO, falls back to the legacy
+   * heuristic (dots → JWT, hyphen → ACCESS_TOKEN, otherwise → API_SECRET).
+   */
+  private resolveTokenType(): TokenType {
+    if (this.tokenType !== TokenType.AUTO) {
+      return this.tokenType;
+    }
+    if (!this.token) return TokenType.API_SECRET;
+    if (this.token.includes('.')) return TokenType.JWT;
+    if (this.token.includes('-')) return TokenType.ACCESS_TOKEN;
+    return TokenType.API_SECRET;
   }
 
   private async fetch<T>(

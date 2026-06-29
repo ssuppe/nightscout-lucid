@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
-import { GlucoseUnit } from './utils/nightscout';
+import { GlucoseUnit, TokenType } from './utils/nightscout';
 
 // Mock child components to isolate App testing
 vi.mock('./components/ConnectionPage', () => {
@@ -11,7 +11,7 @@ vi.mock('./components/ConnectionPage', () => {
         <label htmlFor="mock-url">Nightscout URL</label>
         <input id="mock-url" defaultValue="https://mock-ns.com" />
         <button 
-          onClick={() => onConnect({ getBaseUrl: () => 'https://mock-ns.com' }, 'https://mock-ns.com', 'secret', GlucoseUnit.MGDL)}
+          onClick={() => onConnect({ getBaseUrl: () => 'https://mock-ns.com' }, 'https://mock-ns.com', 'secret', GlucoseUnit.MGDL, TokenType.AUTO)}
         >
           Connect
         </button>
@@ -51,6 +51,7 @@ describe('App Component Router', () => {
     expect(await screen.findByRole('heading', { name: /Overview/i })).toBeInTheDocument();
     expect(sessionStorage.getItem('ns_lucid_url')).toBe('https://mock-ns.com');
     expect(sessionStorage.getItem('ns_lucid_token')).toBe('secret');
+    expect(sessionStorage.getItem('ns_lucid_token_type')).toBe(TokenType.AUTO);
   });
 
   it('restores session from sessionStorage on initial load', () => {

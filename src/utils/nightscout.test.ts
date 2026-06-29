@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { NightscoutClient } from './nightscout';
+import { NightscoutClient, TokenType } from './nightscout';
 
 vi.mock('axios', () => {
   return {
@@ -68,6 +68,30 @@ describe('NightscoutClient', () => {
       expect(params).toEqual({
         token: 'myname-token123',
       });
+    });
+
+    it('explicit TokenType.API_SECRET: hyphenated secret is NOT misclassified as access token', async () => {
+      const client = new NightscoutClient('https://my-ns.com', 'my-hyphenated-secret', TokenType.API_SECRET);
+      const params = client.getAuthParams();
+      expect(params).toEqual({ api_secret: 'my-hyphenated-secret' });
+      const headers = await client.getAuthHeaders();
+      expect(headers).toEqual({});
+    });
+
+    it('explicit TokenType.ACCESS_TOKEN: non-hyphenated string is routed as access token', async () => {
+      const client = new NightscoutClient('https://my-ns.com', 'nohyphentoken', TokenType.ACCESS_TOKEN);
+      const params = client.getAuthParams();
+      expect(params).toEqual({ token: 'nohyphentoken' });
+      const headers = await client.getAuthHeaders();
+      expect(headers).toEqual({});
+    });
+
+    it('explicit TokenType.JWT: token sent as Bearer header regardless of content', async () => {
+      const client = new NightscoutClient('https://my-ns.com', 'plaintext-not-a-jwt', TokenType.JWT);
+      const headers = await client.getAuthHeaders();
+      expect(headers).toEqual({ Authorization: 'Bearer plaintext-not-a-jwt' });
+      const params = client.getAuthParams();
+      expect(params).toEqual({});
     });
   });
 

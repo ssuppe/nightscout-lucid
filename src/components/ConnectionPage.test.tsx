@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConnectionPage } from './ConnectionPage';
-import { GlucoseUnit } from '../utils/nightscout';
+import { GlucoseUnit, TokenType } from '../utils/nightscout';
 
 // Mock the NightscoutClient class
 vi.mock('../utils/nightscout', async (importOriginal) => {
@@ -84,7 +84,8 @@ describe('ConnectionPage', () => {
         expect.any(Object),
         'https://my-nightscout.herokuapp.com',
         'valid-secret',
-        GlucoseUnit.MMOL
+        GlucoseUnit.MMOL,
+        TokenType.AUTO,
       );
     });
   });
@@ -169,7 +170,8 @@ describe('ConnectionPage', () => {
         expect.any(Object),
         expect.stringContaining('/api/nurse'),
         'mock-access-code',
-        expect.any(String)
+        expect.any(String),
+        TokenType.AUTO,
       );
     });
   });
@@ -203,5 +205,39 @@ describe('ConnectionPage', () => {
 
     fireEvent.click(toggleButton);
     expect(codeInput.type).toBe('password');
+  });
+
+  it('renders a Token Type selector with three options', () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+    const select = screen.getByLabelText(/Token Type/i) as HTMLSelectElement;
+    expect(select).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Auto-detect/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /API Secret/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Access Token/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /JWT/i })).toBeInTheDocument();
+  });
+
+  it('passes the selected tokenType to onConnect when connecting', async () => {
+    render(<ConnectionPage onConnect={mockOnConnect} />);
+
+    const urlInput = screen.getByLabelText(/Nightscout URL/i);
+    fireEvent.change(urlInput, { target: { value: 'https://my-nightscout.herokuapp.com' } });
+    fireEvent.change(screen.getByLabelText('API Token'), { target: { value: 'my-hyphenated-secret' } });
+
+    // Explicitly choose API Secret (would be misclassified as access token by the old heuristic)
+    const tokenTypeSelect = screen.getByLabelText(/Token Type/i);
+    fireEvent.change(tokenTypeSelect, { target: { value: TokenType.API_SECRET } });
+
+    fireEvent.submit(urlInput.closest('form')!);
+
+    await waitFor(() => {
+      expect(mockOnConnect).toHaveBeenCalledWith(
+        expect.any(Object),
+        'https://my-nightscout.herokuapp.com',
+        'my-hyphenated-secret',
+        expect.any(String),
+        TokenType.API_SECRET,
+      );
+    });
   });
 });

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Activity, Wifi, AlertCircle, HelpCircle, Eye, EyeOff } from 'lucide-react';
-import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
+import { NightscoutClient, GlucoseUnit, TokenType } from '../utils/nightscout';
 
 interface ConnectionPageProps {
-  onConnect: (client: NightscoutClient, url: string, token: string, units: GlucoseUnit) => void;
+  onConnect: (client: NightscoutClient, url: string, token: string, units: GlucoseUnit, tokenType: TokenType) => void;
   initialUrl?: string;
   initialToken?: string;
   initialUnits?: GlucoseUnit;
+  initialTokenType?: TokenType;
 }
 
 export const ConnectionPage: React.FC<ConnectionPageProps> = ({
@@ -14,10 +15,12 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
   initialUrl = '',
   initialToken = '',
   initialUnits = GlucoseUnit.MMOL,
+  initialTokenType = TokenType.AUTO,
 }) => {
   const [url, setUrl] = useState(initialUrl);
   const [token, setToken] = useState(initialToken);
   const [units, setUnits] = useState<GlucoseUnit>(initialUnits);
+  const [tokenType, setTokenType] = useState<TokenType>(initialTokenType);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,12 +88,12 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
     }
 
     try {
-      const client = new NightscoutClient(cleanUrl, cleanToken);
+      const client = new NightscoutClient(cleanUrl, cleanToken, tokenType);
       // Verify connection by fetching profile
       await client.fetchProfile();
       
       // If successful, invoke callback
-      onConnect(client, cleanUrl, cleanToken, units);
+      onConnect(client, cleanUrl, cleanToken, units, tokenType);
     } catch (err: any) {
       if (loginMode === 'code') {
         setError('Invalid access code. Please try again.');
@@ -212,6 +215,32 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
                       {showToken ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
+                </div>
+                {/* Token Type Selector */}
+                <div>
+                  <label htmlFor="ns-token-type" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Token Type
+                  </label>
+                  <div className="relative mt-2">
+                    <select
+                      id="ns-token-type"
+                      value={tokenType}
+                      onChange={(e) => setTokenType(e.target.value as TokenType)}
+                      className="w-full appearance-none rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900 transition duration-200 outline-none focus:bg-white focus:border-[#72B100] focus:ring-2 focus:ring-[#72B100]/25"
+                      disabled={loading}
+                    >
+                      <option value={TokenType.AUTO}>Auto-detect (recommended)</option>
+                      <option value={TokenType.API_SECRET}>API Secret (plain text)</option>
+                      <option value={TokenType.ACCESS_TOKEN}>Access Token (subject-hash)</option>
+                      <option value={TokenType.JWT}>JWT (Bearer token)</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400">
+                      <HelpCircle className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-slate-400 leading-relaxed">
+                    Use <strong>Auto-detect</strong> unless your API secret contains a hyphen — in that case choose <strong>API Secret</strong> explicitly.
+                  </p>
                 </div>
               </>
             ) : (
