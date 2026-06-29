@@ -114,7 +114,7 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
               Nightscout Lucid
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              A light-themed Dexcom Clarity style dashboard for your Nightscout data.
+              Clarity for your Nightscout data
             </p>
           </div>
 
@@ -144,7 +144,7 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              Access Code
+              Nurse Access Code
             </button>
           </div>
 

@@ -125,14 +125,14 @@ describe('ConnectionPage', () => {
   it('renders tab switcher for login modes', () => {
     render(<ConnectionPage onConnect={mockOnConnect} />);
     expect(screen.getByRole('tab', { name: /Nightscout Login/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Access Code/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Nurse Access Code/i })).toBeInTheDocument();
   });
 
   it('shows error when incorrect access code is entered on Access Code tab', async () => {
     render(<ConnectionPage onConnect={mockOnConnect} />);
     
     // Switch to Access Code tab
-    const accessCodeTab = screen.getByRole('tab', { name: /Access Code/i });
+    const accessCodeTab = screen.getByRole('tab', { name: /Nurse Access Code/i });
     fireEvent.click(accessCodeTab);
 
     // Assert manual fields are hidden and Access Code input is visible
@@ -152,7 +152,7 @@ describe('ConnectionPage', () => {
   it('successfully logs in with the correct access code using the proxy URL', async () => {
     render(<ConnectionPage onConnect={mockOnConnect} />);
     
-    const accessCodeTab = screen.getByRole('tab', { name: /Access Code/i });
+    const accessCodeTab = screen.getByRole('tab', { name: /Nurse Access Code/i });
     fireEvent.click(accessCodeTab);
 
     const codeInput = screen.getByLabelText(/Access Code/i);
