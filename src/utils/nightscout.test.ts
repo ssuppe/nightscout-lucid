@@ -147,4 +147,83 @@ describe('NightscoutClient', () => {
       );
     });
   });
+
+  describe('fetchTreatments', () => {
+    it('queries the API using created_at ISO strings', async () => {
+      const client = new NightscoutClient('https://my-ns.com', 'mysecret');
+      mockedAxios.get.mockResolvedValueOnce({ data: [] });
+
+      const from = new Date('2024-01-01T00:00:00Z');
+      const to   = new Date('2024-01-08T00:00:00Z');
+      await client.fetchTreatments(from, to);
+
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'https://my-ns.com/api/v1/treatments.json',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            'find[created_at][$gte]': from.toISOString(),
+            'find[created_at][$lte]': to.toISOString(),
+          }),
+        })
+      );
+    });
+
+    it('includes a back-entered treatment whose .date is out-of-range but created_at is in-range', async () => {
+      // Scenario: user entered a meal NOW (created_at = in range) but back-dated
+      // it to 3 days BEFORE the query window (.date = out of range).
+      // The NS API returns it (created_at filter passes).
+      // The client-side filter must NOT reject it — it should use created_at.
+      const client = new NightscoutClient('https://my-ns.com', 'mysecret');
+
+      const from = new Date('2024-01-05T00:00:00Z');
+      const to   = new Date('2024-01-08T00:00:00Z');
+
+      const inRangeCreatedAt = '2024-01-06T12:00:00Z'; // inside window
+      const outOfRangeDate   = new Date('2024-01-01T12:00:00Z').getTime(); // 4 days before window
+
+      mockedAxios.get.mockResolvedValueOnce({
+        data: [{
+          _id: 't1',
+          eventType: 'Meal Bolus',
+          created_at: inRangeCreatedAt,
+          date: outOfRangeDate,   // <-- .date is outside window
+          carbs: 45,
+          insulin: 5,
+        }],
+      });
+
+      const result = await client.fetchTreatments(from, to);
+      // Must be included — created_at is in range, and that's what was queried
+      expect(result).toHaveLength(1);
+      expect(result[0]._id).toBe('t1');
+    });
+
+    it('excludes a treatment whose created_at parses to out-of-range even if .date is in-range', async () => {
+      // Scenario: treatment .date is inside window but created_at is outside.
+      // The NS API should not return it (API query uses created_at), so the
+      // client filter is a last line of defence using the same field.
+      const client = new NightscoutClient('https://my-ns.com', 'mysecret');
+
+      const from = new Date('2024-01-05T00:00:00Z');
+      const to   = new Date('2024-01-08T00:00:00Z');
+
+      const outOfRangeCreatedAt = '2024-01-01T00:00:00Z'; // outside window
+      const inRangeDate         = new Date('2024-01-06T12:00:00Z').getTime(); // inside window
+
+      mockedAxios.get.mockResolvedValueOnce({
+        data: [{
+          _id: 't2',
+          eventType: 'Carb Correction',
+          created_at: outOfRangeCreatedAt,
+          date: inRangeDate,
+          carbs: 20,
+          insulin: 0,
+        }],
+      });
+
+      const result = await client.fetchTreatments(from, to);
+      // Must be excluded — created_at is out of range
+      expect(result).toHaveLength(0);
+    });
+  });
 });

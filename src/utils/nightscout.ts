@@ -198,9 +198,13 @@ export class NightscoutClient {
       },
     );
 
+    // Client-side filter uses created_at — the same field the API query uses.
+    // Using .date here would cause a mismatch: back-entered treatments have
+    // created_at in range (so the API returns them) but .date out of range
+    // (so the old filter would incorrectly drop them).
     return treatments.filter((treatment) => {
-      const date = treatment.date || new Date(treatment.created_at).getTime();
-      return date >= fromTime && date <= toTime;
+      const ts = new Date(treatment.created_at).getTime();
+      return ts >= fromTime && ts <= toTime;
     });
   }
 
