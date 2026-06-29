@@ -79,7 +79,9 @@ export const ConnectionPage: React.FC<ConnectionPageProps> = ({
 
     if (loginMode === 'code') {
       // Use proxy endpoint and pass the access code as the token
-      cleanUrl = window.location.origin + '/api/nurse';
+      const base = import.meta.env.BASE_URL || '/';
+      const cleanBase = base.endsWith('/') ? base : base + '/';
+      cleanUrl = window.location.origin + cleanBase + 'api/nurse';
       cleanToken = accessCode.trim();
     } else {
       cleanUrl = url.trim();
