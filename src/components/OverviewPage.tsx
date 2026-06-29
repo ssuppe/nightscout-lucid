@@ -1629,7 +1629,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   {/* AGP Report Header */}
                   <div className="border-b-2 border-slate-200 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[#72B100] font-black text-2xl tracking-tight uppercase">dexcom</span>
+                      <span className="text-[#72B100] font-black text-2xl tracking-tight uppercase">Nightscout</span>
                       <span className="text-slate-300 font-light text-2xl">|</span>
                       <span className="text-[#004B87] font-black text-lg tracking-tight">AGP Report</span>
                     </div>
@@ -1771,74 +1771,100 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     <AGPChart percentiles={calculateAGPPercentiles(displayEntries, units)} units={units} />
                   </div>
 
-                  {/* Daily Glucose Profile calendar grid */}
-                  <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/5">
-                    <div className="mb-6">
+                  {/* Daily Glucose Profile — Dexcom-style table layout */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                    {/* Section header */}
+                    <div className="px-6 pt-5 pb-3 border-b border-slate-100">
                       <h3 className="text-sm font-extrabold text-slate-800">Daily Glucose Profile</h3>
-                      <p className="text-xs text-slate-400 font-semibold mt-0.5">Each daily profile represents a midnight-to-midnight period</p>
+                      <p className="text-xs text-slate-400 font-semibold mt-0.5">Each daily profile represents a midnight-to-midnight period.</p>
                     </div>
 
-                    {/* Columns header row */}
-                    <div className="grid grid-cols-7 gap-3 mb-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                      <div>Monday</div>
-                      <div>Tuesday</div>
-                      <div>Wednesday</div>
-                      <div>Thursday</div>
-                      <div>Friday</div>
-                      <div>Saturday</div>
-                      <div>Sunday</div>
-                    </div>
-
-                    {/* Weekly Rows */}
-                    <div className="space-y-4">
-                      {getWeeklyCalendarRows().map((weekRow, wIdx) => (
-                        <div key={wIdx} className="grid grid-cols-7 gap-3">
-                          {weekRow.map((cellDate, dIdx) => {
-                            const dateStr = cellDate.toDateString();
-                            const dayEntries = displayEntries.filter(e => new Date(e.date).toDateString() === dateStr);
-                            const dayTreatments = treatments.filter(t => {
-                              const date = t.date || new Date(t.created_at).getTime();
-                              return new Date(date).toDateString() === dateStr;
-                            });
-
-                            const displayDayNum = cellDate.getDate();
-                            const monthName = cellDate.toLocaleDateString(undefined, { month: 'short' });
-
-                            return (
-                              <div 
-                                key={dIdx} 
-                                className={`border rounded-lg p-2 flex flex-col justify-between min-h-[90px] bg-white transition shadow-sm ${
-                                  dayEntries.length > 0 
-                                    ? 'border-slate-200 hover:border-slate-300' 
-                                    : 'border-dashed border-slate-200 bg-slate-50/40 opacity-50'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between text-[9px] font-black text-slate-400 uppercase mb-1">
-                                  <span>{displayDayNum} {monthName}</span>
-                                  {dayEntries.length > 0 && (
-                                    <span className="text-[8px] text-slate-500">
-                                      {dayEntries.length} logs
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                        <thead>
+                          <tr>
+                            {/* Empty corner cell */}
+                            <th style={{ width: '44px' }} className="border-0 p-0" />
+                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                              <th key={day} className="border-0 p-0 pb-1 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                {day}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getWeeklyCalendarRows().map((weekRow, wIdx) => (
+                            <React.Fragment key={wIdx}>
+                              {/* Chart row */}
+                              <tr>
+                                {/* Rotated unit label */}
+                                <td className="border-0 p-0 relative" style={{ width: '44px', height: '72px' }}>
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <span
+                                      className="text-[9px] font-black text-slate-400 uppercase tracking-widest"
+                                      style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}
+                                    >
+                                      {units === 'mmol' ? 'mmol/L' : 'mg/dL'}
                                     </span>
-                                  )}
-                                </div>
-                                
-                                <div className="flex-1 flex items-center justify-center min-h-[45px]">
-                                  {dayEntries.length > 0 ? (
-                                    <DailyMiniChart
-                                      entries={dayEntries}
-                                      treatments={dayTreatments}
-                                      units={units}
-                                      dayStart={cellDate.getTime()}
-                                    />
-                                  ) : (
-                                    <span className="text-[9px] text-slate-300 italic font-semibold">Empty</span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
+                                  </div>
+                                </td>
+
+                                {weekRow.map((cellDate, dIdx) => {
+                                  const dateStr = cellDate.toDateString();
+                                  const dayEntries = displayEntries.filter(e => new Date(e.date).toDateString() === dateStr);
+                                  const dayTreatments = treatments.filter(t => {
+                                    const date = t.date || new Date(t.created_at).getTime();
+                                    return new Date(date).toDateString() === dateStr;
+                                  });
+                                  const displayDayNum = cellDate.getDate();
+
+                                  return (
+                                    <td
+                                      key={dIdx}
+                                      className="border-0 p-0 relative"
+                                      style={{ height: '72px', borderLeft: dIdx === 0 ? '1px solid #e2e8f0' : '1px solid #f1f5f9' }}
+                                    >
+                                      {/* Day-of-month label overlay */}
+                                      <span className="absolute top-0.5 left-1 text-[8px] font-black text-slate-500 z-10 leading-none">
+                                        {displayDayNum}
+                                      </span>
+
+                                      {dayEntries.length > 0 ? (
+                                        <DailyMiniChart
+                                          entries={dayEntries}
+                                          treatments={dayTreatments}
+                                          units={units}
+                                          dayStart={cellDate.getTime()}
+                                          compact
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-slate-50/60">
+                                          <span className="text-[8px] text-slate-300 italic font-semibold">—</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+
+                              {/* X-axis label row (noon marker) */}
+                              <tr>
+                                <td className="border-0 p-0" />
+                                {weekRow.map((_, dIdx) => (
+                                  <td
+                                    key={dIdx}
+                                    className="border-0 p-0 text-center"
+                                    style={{ borderLeft: dIdx === 0 ? '1px solid #e2e8f0' : '1px solid #f1f5f9' }}
+                                  >
+                                    <span className="text-[8px] text-slate-300 font-bold">12:00</span>
+                                  </td>
+                                ))}
+                              </tr>
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
