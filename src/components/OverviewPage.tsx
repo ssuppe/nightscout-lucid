@@ -187,14 +187,22 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const rangeStart = new Date(today);
+    rangeStart.setDate(today.getDate() - dateRangeDays + 1);
+    rangeStart.setHours(0, 0, 0, 0);
+
     for (let i = 0; i < dateRangeDays; i += 7) {
       const weekEnd = new Date(today);
       weekEnd.setDate(today.getDate() - i);
       weekEnd.setHours(23, 59, 59, 999);
 
-      const weekStart = new Date(weekEnd);
+      let weekStart = new Date(weekEnd);
       weekStart.setDate(weekEnd.getDate() - 6);
       weekStart.setHours(0, 0, 0, 0);
+
+      if (weekStart < rangeStart) {
+        weekStart = new Date(rangeStart);
+      }
 
       weeks.push({ start: weekStart, end: weekEnd });
     }
@@ -952,14 +960,22 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   const baseEnd = new Date(endLimit);
                   baseEnd.setHours(23, 59, 59, 999);
 
+                  const rangeStart = new Date(baseEnd);
+                  rangeStart.setDate(baseEnd.getDate() - dateRangeDays + 1);
+                  rangeStart.setHours(0, 0, 0, 0);
+
                   for (let i = 0; i < dateRangeDays; i += 7) {
                     const weekEnd = new Date(baseEnd);
                     weekEnd.setDate(baseEnd.getDate() - i);
                     weekEnd.setHours(23, 59, 59, 999);
 
-                    const weekStart = new Date(weekEnd);
+                    let weekStart = new Date(weekEnd);
                     weekStart.setDate(weekEnd.getDate() - 6);
                     weekStart.setHours(0, 0, 0, 0);
+
+                    if (weekStart < rangeStart) {
+                      weekStart = new Date(rangeStart);
+                    }
 
                     weeks.push({ start: weekStart, end: weekEnd });
                   }

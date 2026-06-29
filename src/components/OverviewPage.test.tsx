@@ -17,7 +17,7 @@ vi.mock('./DailyMiniChart', () => ({
   DailyMiniChart: () => <div data-testid="mock-daily-mini-chart" />,
 }));
 vi.mock('./WeeklyOverlayChart', () => ({
-  WeeklyOverlayChart: () => <div data-testid="mock-weekly-overlay-chart" />,
+  WeeklyOverlayChart: ({ weekLabel }: any) => <div data-testid="mock-weekly-overlay-chart">{weekLabel}</div>,
 }));
 vi.mock('./DailyStatsTable', () => ({
   DailyStatsTable: () => <div data-testid="mock-daily-stats-table" />,
@@ -363,5 +363,45 @@ describe('OverviewPage', () => {
     expect(veryLowSegment).toBeInTheDocument();
     expect(veryLowSegment).toHaveStyle('height: 1%');
   });
+
+  it('clamps the oldest week start date to rangeStart when dateRangeDays is 30 (non-multiple of 7) to avoid double-counting or out-of-bounds dates', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // Set to 30d range
+    const btn30 = screen.getByRole('button', { name: '30d' });
+    fireEvent.click(btn30);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // Go to Overlay tab
+    const overlayTabBtn = screen.getByRole('button', { name: 'Overlay' });
+    fireEvent.click(overlayTabBtn);
+
+    // Calculate rangeStart: today - 29 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const rangeStart = new Date(today);
+    rangeStart.setDate(today.getDate() - 29); // 30 days total (today is index 0)
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const rangeStartStr = rangeStart.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric'
+    });
+
+    // The oldest week should be Week 5
+    // Without clamping, Week 5 starts at today - 34 days.
+    // With clamping, Week 5 starts at today - 29 days (rangeStartStr).
+    // Let's verify that the text matches the clamped rangeStartStr
+    expect(screen.getByText(new RegExp(`Week of ${rangeStartStr}`, 'i'))).toBeInTheDocument();
+  });
 });
+
 
