@@ -380,25 +380,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               </button>
             </div>
 
-            {/* Profile Dropdown */}
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-slate-700 hover:text-slate-900 border border-slate-200 rounded-md bg-slate-50/50 cursor-pointer">
-                <span>Steven Suppe</span>
-                <span className="text-[10px] text-slate-400">▼</span>
-              </button>
-              <div className="absolute right-0 top-full pt-1 w-48 hidden group-hover:block z-50">
-                <div className="bg-white border border-slate-200 rounded-lg shadow-lg py-1">
-                  <a href="#" className="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold">Manage Consent</a>
-                  <a href="#" className="block px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-bold">Manage Profile</a>
-                  <button
-                    onClick={onDisconnect}
-                    className="w-full text-left block px-4 py-2 text-xs text-red-600 hover:bg-red-50 font-bold border-t border-slate-100 cursor-pointer"
-                  >
-                    Logout / Disconnect
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* Disconnect Button */}
+            <button
+              onClick={onDisconnect}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50/50 rounded-md transition cursor-pointer"
+            >
+              Disconnect
+            </button>
           </div>
         </div>
       </header>
@@ -743,9 +731,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                           <Award className="h-6 w-6 stroke-[2.5]" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-extrabold text-slate-800">Steven's best glucose day</h4>
+                          <h4 className="text-sm font-extrabold text-slate-800">Best glucose day</h4>
                           <p className="text-xs text-slate-500 mt-0.5 font-bold">
-                            Steven's glucose data was in the target range about {bestDayInfo.tir}% of the day.
+                            Glucose data was in the target range about {bestDayInfo.tir}% of the day.
                           </p>
                         </div>
                       </div>
@@ -863,9 +851,9 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         <Award className="h-6 w-6 stroke-[2.5]" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-extrabold text-slate-800">Steven's best glucose day</h4>
+                        <h4 className="text-sm font-extrabold text-slate-800">Best glucose day</h4>
                         <p className="text-xs text-slate-500 mt-1 font-bold">
-                          Steven's glucose data was in the target range about {bestDayInfo.tir}% of the day.
+                          Glucose data was in the target range about {bestDayInfo.tir}% of the day.
                         </p>
                       </div>
                     </div>
@@ -1675,8 +1663,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                       <span className="text-[#004B87] font-black text-lg tracking-tight">AGP Report</span>
                     </div>
                     <div className="text-left sm:text-right">
-                      <div className="text-sm font-black text-slate-800">Steven Suppe</div>
-                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">DOB: 23 June 1981</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Report Period</div>
+                      <div className="text-xs font-black text-slate-700 mt-0.5">{dateRangeStr}</div>
                     </div>
                   </div>
 
