@@ -251,4 +251,76 @@ describe('OverviewPage', () => {
     // Both AGP charts are rendered
     expect(screen.getAllByTestId('mock-agp-chart').length).toBe(2);
   });
+
+  // ─── Gap-closing tests ──────────────────────────────────────────────────────
+
+  it('unit toggle: switching to mmol/L recalculates and displays the correct converted mean', async () => {
+    // 120 mg/dL mean → 120 / 18.018 = 6.66... → rounds to 6.7 mmol/L
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // Baseline: mg/dL mean shown as integer
+    expect(screen.getByText('120')).toBeInTheDocument();
+
+    // Click mmol/L toggle in the top navbar
+    const mmolBtn = screen.getByRole('button', { name: 'mmol/L' });
+    fireEvent.click(mmolBtn);
+
+    // Mean should now show mmol/L value — 120 mg/dL = 6.7 mmol/L
+    await waitFor(() => {
+      expect(screen.getByText('6.7')).toBeInTheDocument();
+    });
+    // The old integer string '120' should no longer appear as the mean label
+    // (it may still exist in other contexts so we check the mean card specifically)
+    expect(screen.queryByText('120')).not.toBeInTheDocument();
+  });
+
+  it('fetchEntries failure shows error banner with "Failed to sync data" heading and Retry button', async () => {
+    vi.mocked(mockClient.fetchEntries).mockRejectedValue(
+      new Error('Network error: CORS settings blocked the request')
+    );
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to sync data')).toBeInTheDocument();
+    });
+
+    // Error message text is shown
+    expect(screen.getByText(/CORS settings blocked/i)).toBeInTheDocument();
+
+    // Retry button is present and clicking it triggers another fetch
+    const retryBtn = screen.getByRole('button', { name: /Retry Fetch/i });
+    expect(retryBtn).toBeInTheDocument();
+    fireEvent.click(retryBtn);
+    // After retry click fetchEntries should be called a second time
+    expect(vi.mocked(mockClient.fetchEntries).mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('date-range button calls fetchEntries with a from date ~30 days in the past', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    vi.mocked(mockClient.fetchEntries).mockClear();
+    setupMockData(120); // re-arm mock for the next call
+
+    fireEvent.click(screen.getByRole('button', { name: '30d' }));
+
+    await waitFor(() => {
+      expect(vi.mocked(mockClient.fetchEntries)).toHaveBeenCalled();
+    });
+
+    const [fromArg, toArg] = vi.mocked(mockClient.fetchEntries).mock.calls[0] as [Date, Date];
+    const diffDays = (toArg.getTime() - fromArg.getTime()) / (1000 * 60 * 60 * 24);
+    // Should be approximately 30 days (allow ±1 for timing)
+    expect(diffDays).toBeGreaterThanOrEqual(29);
+    expect(diffDays).toBeLessThanOrEqual(31);
+  });
 });
