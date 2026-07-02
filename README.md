@@ -33,18 +33,18 @@ Please note: This software was written primarily with AI, driven by a former sof
 <p align="center">
   <img src="./docs/screenshots/1_login.png" alt="Nightscout Connection Screen" width="400" />
 </p>
-The connection screen allows users to input their personal Nightscout instance URL and API credentials to securely access their database in-browser.
+The connection screen allows users to input their Nightscout instance URL and API credentials to access their data in-browser.
 
 <p align="center">
   <img src="./docs/screenshots/2_nurse_code.png" alt="Nurse Access Code Screen" width="400" />
 </p>
-A simplified alternative login screen that allows clinical staff or caregivers to view reports using a restricted, read-only access code.
+An alternative login screen that allows caregivers or clinicians to view reports using a read-only access code.
 
 ### Product Reports & Views
 <p align="center">
   <img src="./docs/screenshots/3_overview.png" alt="Dashboard Overview" width="700" />
 </p>
-The main dashboard screen provides a comprehensive view of glucose averages, GMI, Time in Range statistics, and interactive trend charts.
+The main dashboard screen displays glucose averages, GMI, Time in Range statistics, and interactive trend charts.
 
 <p align="center">
   <img src="./docs/screenshots/4_patterns.png" alt="Glucose Patterns" width="700" />
@@ -54,7 +54,7 @@ The patterns page is designed to automatically scan glucose data to identify tre
 <p align="center">
   <img src="./docs/screenshots/5_overlay.png" alt="Weekly Overlay" width="700" />
 </p>
-The overlay view stacks weekly 24-hour glucose curves, helping users visualize and compare recurring patterns across different days of the week.
+The overlay view stacks weekly 24-hour glucose curves, helping users visualize and compare trends across different days of the week.
 
 <p align="center">
   <img src="./docs/screenshots/6_daily.png" alt="Daily Logs" width="700" />
@@ -74,7 +74,7 @@ The statistics tab provides detailed daily and hourly tabular reports on average
 <p align="center">
   <img src="./docs/screenshots/9_agp.png" alt="Ambulatory Glucose Profile" width="700" />
 </p>
-The AGP screen generates a clinical-grade Ambulatory Glucose Profile report featuring standard percentile curves and diagnostic glucose stats.
+The AGP screen generates an Ambulatory Glucose Profile report featuring standard percentile curves and glucose statistics.
 
 ---
 
