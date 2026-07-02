@@ -27,6 +27,57 @@ Please note: This software was written primarily with AI, driven by a former sof
 
 ---
 
+## Screenshots
+
+### Connection & Login
+<p align="center">
+  <img src="./docs/screenshots/1_login.png" alt="Nightscout Connection Screen" width="800" />
+</p>
+The connection screen allows users to input their personal Nightscout instance URL and API credentials to securely access their database in-browser.
+
+<p align="center">
+  <img src="./docs/screenshots/2_nurse_code.png" alt="Nurse Access Code Screen" width="800" />
+</p>
+A simplified alternative login screen that allows clinical staff or caregivers to view reports using a restricted, read-only access code.
+
+### Product Reports & Views
+<p align="center">
+  <img src="./docs/screenshots/3_overview.png" alt="Dashboard Overview" width="800" />
+</p>
+The main dashboard screen provides a comprehensive view of glucose averages, GMI, Time in Range statistics, and interactive trend charts.
+
+<p align="center">
+  <img src="./docs/screenshots/4_patterns.png" alt="Glucose Patterns" width="800" />
+</p>
+The patterns page is designed to automatically scan glucose data to identify trends and highlight outliers, currently displaying a placeholder view as this feature is not yet fully implemented.
+
+<p align="center">
+  <img src="./docs/screenshots/5_overlay.png" alt="Weekly Overlay" width="800" />
+</p>
+The overlay view stacks weekly 24-hour glucose curves, helping users visualize and compare recurring patterns across different days of the week.
+
+<p align="center">
+  <img src="./docs/screenshots/6_daily.png" alt="Daily Logs" width="800" />
+</p>
+The daily logs screen displays consecutive 24-hour glucose curves alongside insulin and carbohydrate event markers for detailed daily tracking.
+
+<p align="center">
+  <img src="./docs/screenshots/7_compare.png" alt="Period Comparison" width="800" />
+</p>
+The compare screen allows users to compare metrics and charts side-by-side between two distinct time periods to monitor progress.
+
+<p align="center">
+  <img src="./docs/screenshots/8_statistics.png" alt="Data Statistics" width="800" />
+</p>
+The statistics tab provides detailed daily and hourly tabular reports on average glucose, standard deviation, and Time in Range brackets.
+
+<p align="center">
+  <img src="./docs/screenshots/9_agp.png" alt="Ambulatory Glucose Profile" width="800" />
+</p>
+The AGP screen generates a clinical-grade Ambulatory Glucose Profile report featuring standard percentile curves and diagnostic glucose stats.
+
+---
+
 ## Local Development
 
 ### Prerequisites
