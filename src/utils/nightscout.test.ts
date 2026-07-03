@@ -123,6 +123,103 @@ describe('NightscoutClient', () => {
       expect(result).toEqual(mockEntries);
     });
 
+    it('should recursively fetch entries when response size equals ENTRY_PAGE_SIZE', async () => {
+      // Temporarily set a small page size for testing
+      const originalPageSize = NightscoutClient.ENTRY_PAGE_SIZE;
+      NightscoutClient.ENTRY_PAGE_SIZE = 2;
+
+      try {
+        const client = new NightscoutClient('https://my-ns.com', 'token');
+        const from = new Date(1719580000000);
+        const to = new Date(1719600000000);
+
+        // Page 1 returns 2 entries (full page)
+        const mockPage1 = [
+          { _id: 'e1', date: 1719595000000, sgv: 120, type: 'sgv' },
+          { _id: 'e2', date: 1719590000000, sgv: 140, type: 'sgv' }, // oldest in page 1
+        ];
+        // Page 2 returns 1 entry (< page size, stops loop)
+        const mockPage2 = [
+          { _id: 'e3', date: 1719585000000, sgv: 130, type: 'sgv' },
+        ];
+
+        mockedAxios.get
+          .mockResolvedValueOnce({ data: mockPage1 })
+          .mockResolvedValueOnce({ data: mockPage2 });
+
+        const result = await client.fetchEntries(from, to);
+
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        expect(result).toHaveLength(3);
+        expect(result).toEqual([
+          { _id: 'e1', date: 1719595000000, sgv: 120, type: 'sgv' },
+          { _id: 'e2', date: 1719590000000, sgv: 140, type: 'sgv' },
+          { _id: 'e3', date: 1719585000000, sgv: 130, type: 'sgv' },
+        ]);
+
+        // Verify query parameters for Page 2 adjusted date limit
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(
+          2,
+          'https://my-ns.com/api/v1/entries/sgv.json',
+          expect.objectContaining({
+            params: expect.objectContaining({
+              'find[date][$gte]': from.getTime(),
+              'find[date][$lte]': 1719590000000,
+              count: 2,
+            }),
+          })
+        );
+      } finally {
+        NightscoutClient.ENTRY_PAGE_SIZE = originalPageSize;
+      }
+    });
+
+    it('should recursively fetch treatments when response size equals TREATMENT_PAGE_SIZE', async () => {
+      const originalPageSize = NightscoutClient.TREATMENT_PAGE_SIZE;
+      NightscoutClient.TREATMENT_PAGE_SIZE = 2;
+
+      try {
+        const client = new NightscoutClient('https://my-ns.com', 'token');
+        const from = new Date('2024-01-01T00:00:00Z');
+        const to = new Date('2024-01-05T00:00:00Z');
+
+        // Page 1 returns 2 treatments (full page)
+        const mockPage1 = [
+          { _id: 't1', created_at: '2024-01-04T12:00:00Z', date: new Date('2024-01-04T12:00:00Z').getTime(), eventType: 'Bolus' },
+          { _id: 't2', created_at: '2024-01-03T12:00:00Z', date: new Date('2024-01-03T12:00:00Z').getTime(), eventType: 'Bolus' },
+        ];
+        // Page 2 returns 1 treatment
+        const mockPage2 = [
+          { _id: 't3', created_at: '2024-01-02T12:00:00Z', date: new Date('2024-01-02T12:00:00Z').getTime(), eventType: 'Bolus' },
+        ];
+
+        mockedAxios.get
+          .mockResolvedValueOnce({ data: mockPage1 })
+          .mockResolvedValueOnce({ data: mockPage2 });
+
+        const result = await client.fetchTreatments(from, to);
+
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        expect(result).toHaveLength(3);
+
+        // Verify the second request adjusted $lte created_at to the oldest item of Page 1
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(
+          2,
+          'https://my-ns.com/api/v1/treatments.json',
+          expect.objectContaining({
+            params: expect.objectContaining({
+              'find[created_at][$gte]': from.toISOString(),
+              'find[created_at][$lte]': '2024-01-03T12:00:00.000Z',
+              count: 2,
+            }),
+          })
+        );
+      } finally {
+        NightscoutClient.TREATMENT_PAGE_SIZE = originalPageSize;
+      }
+    });
+
+
     it('should throw customized error for 401 response', async () => {
       const client = new NightscoutClient('https://my-ns.com', 'token');
       mockedAxios.get.mockRejectedValueOnce({
