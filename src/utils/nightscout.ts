@@ -67,6 +67,9 @@ export enum TokenType {
 }
 
 export class NightscoutClient {
+  public static ENTRY_PAGE_SIZE = 50000;
+  public static TREATMENT_PAGE_SIZE = 10000;
+
   private baseUrl: string;
   private token: string;
   private tokenType: TokenType;
@@ -172,37 +175,85 @@ export class NightscoutClient {
   public async fetchEntries(from: Date, to: Date): Promise<NightscoutEntry[]> {
     const fromTime = from.getTime();
     const toTime = to.getTime();
+    const allEntries: NightscoutEntry[] = [];
+    const pageSize = NightscoutClient.ENTRY_PAGE_SIZE;
+    let currentToTime = toTime;
 
-    const entries = await this.fetch<NightscoutEntry[]>(
-      '/api/v1/entries/sgv.json',
-      {
-        'find[date][$gte]': fromTime,
-        'find[date][$lte]': toTime,
-        count: 50000,
-      },
-    );
+    while (currentToTime >= fromTime) {
+      const entries = await this.fetch<NightscoutEntry[]>(
+        '/api/v1/entries/sgv.json',
+        {
+          'find[date][$gte]': fromTime,
+          'find[date][$lte]': currentToTime,
+          count: pageSize,
+        },
+      );
 
-    return entries.filter((entry) => entry.date >= fromTime && entry.date <= toTime);
+      if (entries.length === 0) {
+        break;
+      }
+
+      allEntries.push(...entries);
+
+      if (entries.length < pageSize) {
+        break;
+      }
+
+      const oldestTime = entries[entries.length - 1].date;
+
+      if (oldestTime >= currentToTime) {
+        currentToTime = oldestTime - 1;
+      } else {
+        currentToTime = oldestTime;
+      }
+    }
+
+    const uniqueEntries = Array.from(new Map(allEntries.map((e) => [e._id || String(e.date), e])).values());
+    return uniqueEntries.filter((entry) => entry.date >= fromTime && entry.date <= toTime);
   }
 
   public async fetchTreatments(from: Date, to: Date): Promise<NightscoutTreatment[]> {
     const fromTime = from.getTime();
     const toTime = to.getTime();
+    const allTreatments: NightscoutTreatment[] = [];
+    const pageSize = NightscoutClient.TREATMENT_PAGE_SIZE;
+    let currentToTime = to;
 
-    const treatments = await this.fetch<NightscoutTreatment[]>(
-      '/api/v1/treatments.json',
-      {
-        'find[created_at][$gte]': from.toISOString(),
-        'find[created_at][$lte]': to.toISOString(),
-        count: 10000,
-      },
+    while (currentToTime.getTime() >= fromTime) {
+      const treatments = await this.fetch<NightscoutTreatment[]>(
+        '/api/v1/treatments.json',
+        {
+          'find[created_at][$gte]': from.toISOString(),
+          'find[created_at][$lte]': currentToTime.toISOString(),
+          count: pageSize,
+        },
+      );
+
+      if (treatments.length === 0) {
+        break;
+      }
+
+      allTreatments.push(...treatments);
+
+      if (treatments.length < pageSize) {
+        break;
+      }
+
+      const oldestTreatment = treatments[treatments.length - 1];
+      const oldestTime = oldestTreatment.date || new Date(oldestTreatment.created_at).getTime();
+
+      if (oldestTime >= currentToTime.getTime()) {
+        currentToTime = new Date(oldestTime - 1);
+      } else {
+        currentToTime = new Date(oldestTime);
+      }
+    }
+
+    const uniqueTreatments = Array.from(
+      new Map(allTreatments.map((t) => [t._id || t.created_at, t])).values()
     );
 
-    // Client-side filter uses created_at — the same field the API query uses.
-    // Using .date here would cause a mismatch: back-entered treatments have
-    // created_at in range (so the API returns them) but .date out of range
-    // (so the old filter would incorrectly drop them).
-    return treatments.filter((treatment) => {
+    return uniqueTreatments.filter((treatment) => {
       const ts = new Date(treatment.created_at).getTime();
       return ts >= fromTime && ts <= toTime;
     });
