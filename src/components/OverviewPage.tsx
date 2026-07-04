@@ -45,6 +45,16 @@ const getActiveDays = (entries: NightscoutEntry[], defaultDays: number): number 
   return Math.min(defaultDays, Math.max(1, Math.ceil((max - min) / (1000 * 60 * 60 * 24))));
 };
 
+const tabLabels: Record<string, string> = {
+  overview: 'Overview',
+  patterns: 'Patterns',
+  overlay: 'Overlay',
+  daily: 'Daily',
+  compare: 'Compare',
+  stats: 'Statistics',
+  agp: 'AGP',
+};
+
 export const OverviewPage: React.FC<OverviewPageProps> = ({
   client,
   preferredUnits,
@@ -432,8 +442,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           {/* Header Row */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight capitalize">
-                {activeTab === 'stats' ? 'Statistics' : activeTab}
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+                {tabLabels[activeTab] || activeTab}
               </h1>
 
               {/* Mobile page selector dropdown */}

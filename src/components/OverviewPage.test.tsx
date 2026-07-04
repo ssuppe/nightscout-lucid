@@ -173,6 +173,7 @@ describe('OverviewPage', () => {
     const agpTabBtn = screen.getByRole('button', { name: 'AGP' });
     fireEvent.click(agpTabBtn);
 
+    expect(screen.getByRole('heading', { name: 'AGP' })).toBeInTheDocument();
     expect(screen.getByTestId('mock-agp-chart')).toBeInTheDocument();
   });
 
@@ -187,7 +188,7 @@ describe('OverviewPage', () => {
     const dailyTabBtn = screen.getByRole('button', { name: 'Daily' });
     fireEvent.click(dailyTabBtn);
 
-    expect(screen.getByRole('heading', { name: 'daily' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Daily' })).toBeInTheDocument();
     expect(screen.getAllByTestId('mock-daily-mini-chart').length).toBeGreaterThan(0);
   });
 
