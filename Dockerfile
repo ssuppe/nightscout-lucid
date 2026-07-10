@@ -1,6 +1,7 @@
 # Stage 1: Build the Vite app
 FROM node:20-alpine AS build
 ARG VITE_BASE=/
+ENV NODE_ENV=development
 WORKDIR /app
 
 COPY package*.json ./
