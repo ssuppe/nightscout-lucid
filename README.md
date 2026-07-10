@@ -104,11 +104,41 @@ The AGP screen generates an Ambulatory Glucose Profile report featuring standard
    ```
    The app opens at `http://localhost:5173`. Enter your Nightscout URL and API token on the connection screen.
 
-4. **Run via Docker (Alternative):**
-   To test the production container locally on `http://localhost:8120/`:
-   ```bash
-   just run-local
-   ```
+4. **Run via Docker (Alternatives):**
+
+   * **Using `just`:**
+     To build and test the production container locally on `http://localhost:8120/`:
+     ```bash
+     just run-local
+     ```
+
+   * **Using Docker Compose (Recommended):**
+     If you don't want to install `just`, you can run the app using standard Docker Compose:
+     ```bash
+     # Copy the environment file template and configure variables
+     cp .env.example .env
+     
+     # Build and start the container
+     docker compose up --build -d
+     ```
+     The dashboard will be available at `http://localhost:8120/`.
+
+   * **Using Raw Docker CLI:**
+     To build and run the container manually using the Docker CLI:
+     ```bash
+     # Build the image
+     docker build -t nightscout-lucid .
+     
+     # Run the container (replace with your Nightscout credentials)
+     docker run -d \
+       --name nightscout-lucid \
+       -p 8120:80 \
+       -e NURSE_ACCESS_CODE="your_local_code" \
+       -e NURSE_NIGHTSCOUT_URL="https://your-nightscout-url.com" \
+       -e NURSE_NIGHTSCOUT_TOKEN="your_token" \
+       --restart unless-stopped \
+       nightscout-lucid
+     ```
 
 ### Testing
 
