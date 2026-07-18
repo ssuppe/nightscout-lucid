@@ -7,7 +7,7 @@ import {
   ChevronRight,
   Smartphone,
   Award,
-  FileSpreadsheet
+  FileText
 } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
@@ -19,12 +19,70 @@ import {
 } from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
 import { generateCSV } from '../utils/csvExport';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { AGPChart } from './AGPChart';
 import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 import { DailyMiniChart } from './DailyMiniChart';
 import { WeeklyOverlayChart } from './WeeklyOverlayChart';
 import { DailyStatsTable } from './DailyStatsTable';
 import { HourlyStatsTable } from './HourlyStatsTable';
+
+export const oklchCache = new Map<string, string>();
+
+export const convertOklchToRgb = (oklStr: string): string => {
+  if (oklchCache.has(oklStr)) {
+    return oklchCache.get(oklStr)!;
+  }
+
+  // Handle transparent values early (prevents Canvas initialization in JSDOM)
+  if (oklStr.includes('/ 0') || oklStr.includes('/0')) {
+    return 'rgba(0, 0, 0, 0)';
+  }
+
+  if (typeof document === 'undefined') {
+    return 'rgb(255, 255, 255)';
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      return 'rgb(255, 255, 255)';
+    }
+
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = oklStr;
+    ctx.fillRect(0, 0, 1, 1);
+
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+
+    // Check for mock test environments (where JSDOM returns 0 alpha [0,0,0,0])
+    if (data[3] === 0) {
+      return 'rgb(255, 255, 255)';
+    }
+
+    const result = `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${(data[3] / 255).toFixed(3)})`;
+    oklchCache.set(oklStr, result);
+    return result;
+  } catch (e) {
+    return 'rgb(255, 255, 255)';
+  }
+};
+
+export const resolveOklchStrings = (str: string): string => {
+  if (!str || typeof str !== 'string') {
+    return str;
+  }
+  if (!str.includes('oklch(') && !str.includes('oklab(') && !str.includes('lch(') && !str.includes('lab(')) {
+    return str;
+  }
+  return str.replace(/(oklch|oklab|lch|lab)\([^)]+\)/g, (match) => {
+    return convertOklchToRgb(match);
+  });
+};
 
 interface OverviewPageProps {
   client: NightscoutClient;
@@ -69,6 +127,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   const [treatments, setTreatments] = useState<NightscoutTreatment[]>([]);
   const [metrics, setMetrics] = useState<GlucoseMetrics | null>(null);
   const [dateRangeStr, setDateRangeStr] = useState<string>('');
+  const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
+  const [pdfProgress, setPdfProgress] = useState<number>(0);
 
   // Overlay Filters States
   const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
@@ -89,6 +149,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
   // Ref to track if we were in compare mode (to avoid double-reload on non-boundary tab switches)
   const wasCompareRef = React.useRef<boolean>(false);
+  const isExportingPdfRef = React.useRef<boolean>(false);
 
   const loadData = async (days: number) => {
     setLoading(true);
@@ -142,6 +203,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
   // Reload data when dateRangeDays changes (always load appropriate amount)
   useEffect(() => {
+    if (isExportingPdfRef.current) return;
     const daysToLoad = isCompareNow ? dateRangeDays * 2 : dateRangeDays;
     loadData(daysToLoad);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,6 +211,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
   // Also reload when switching from non-compare to compare (need double the data)
   useEffect(() => {
+    if (isExportingPdfRef.current) {
+      wasCompareRef.current = isCompareNow;
+      return;
+    }
     const wasCompare = wasCompareRef.current;
     wasCompareRef.current = isCompareNow;
     if (!wasCompare && isCompareNow) {
@@ -192,6 +258,236 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+  const handleExportPDF = async () => {
+    setGeneratingPdf(true);
+    const originalTab = activeTab;
+
+    // Enable PDF export flag to prevent state changes from launching automatic fetches
+    isExportingPdfRef.current = true;
+
+    const tabsToExport: ('overview' | 'patterns' | 'overlay' | 'daily' | 'compare' | 'stats' | 'agp')[] = [
+      'overview',
+      'patterns',
+      'overlay',
+      'daily',
+      'compare',
+      'stats',
+      'agp'
+    ];
+    
+    interface TabResult {
+      tabName: string;
+      tabTitle: string;
+      images: { imgData: string; width: number; height: number }[];
+    }
+    const tabResults: TabResult[] = [];
+
+    const container = document.getElementById('report-content-container');
+    if (!container) {
+      console.error('[PDF EXPORT] Error: report-content-container element not found in DOM!');
+      isExportingPdfRef.current = false;
+      setGeneratingPdf(false);
+      return;
+    }
+
+    // Lock width to 1200px for print uniformity and scale consistency
+    const originalWidth = container.style.width;
+    container.style.width = '1200px';
+
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, process.env.NODE_ENV === 'test' ? 50 : ms));
+
+    const getTabTitle = (tab: string) => {
+      switch (tab) {
+        case 'overview': return 'Overview Report';
+        case 'patterns': return 'Patterns Report';
+        case 'overlay': return 'Weekly Overlay Report';
+        case 'daily': return 'Daily Glucose Report';
+        case 'compare': return 'Compare Report';
+        case 'stats': return 'Glucose & Insulin Statistics';
+        case 'agp': return 'Ambulatory Glucose Profile (AGP) Report';
+        default: return 'Report';
+      }
+    };
+
+    try {
+      for (let i = 0; i < tabsToExport.length; i++) {
+        const tabName = tabsToExport[i];
+        setPdfProgress(i + 1);
+
+        // Switch tab state and trigger re-render
+        setActiveTab(tabName);
+
+        // Wait for ECharts initial rendering and layout adjustments
+        await delay(1500);
+
+        const tabImages: { imgData: string; width: number; height: number }[] = [];
+        
+        // Get child elements inside the tab container to capture individually
+        const childElements = Array.from(container.children).filter(
+          (el: any) => el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE'
+        );
+
+        for (let j = 0; j < childElements.length; j++) {
+          const child = childElements[j] as HTMLElement;
+          
+          // Temporarily override getComputedStyle during capture to resolve oklch/oklab/lch/lab colors
+          const originalGetComputedStyle = window.getComputedStyle;
+          window.getComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
+            const style = originalGetComputedStyle.call(this, elt, pseudoElt);
+            return new Proxy(style, {
+              get(target, prop) {
+                if (prop === 'getPropertyValue') {
+                  return (propertyName: string) => {
+                    return resolveOklchStrings(target.getPropertyValue(propertyName));
+                  };
+                }
+                // Use target as receiver to prevent "Illegal invocation" errors on native getters
+                const value = Reflect.get(target, prop, target);
+                if (typeof value === 'string') {
+                  return resolveOklchStrings(value);
+                }
+                return typeof value === 'function' ? value.bind(target) : value;
+              }
+            });
+          } as any;
+
+          try {
+            const canvas = await html2canvas(child, {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: '#f8fafc',
+              scrollX: 0,
+              scrollY: 0,
+            });
+            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+            tabImages.push({
+              imgData,
+              width: canvas.width,
+              height: canvas.height,
+            });
+          } catch (err: any) {
+            console.error(`[PDF EXPORT] [Page ${i + 1}/7] Failed to capture element ${j + 1}:`, err);
+          } finally {
+            window.getComputedStyle = originalGetComputedStyle;
+          }
+        }
+
+        tabResults.push({
+          tabName,
+          tabTitle: getTabTitle(tabName),
+          images: tabImages,
+        });
+      }
+    } finally {
+      // Restore original width and active tab
+      container.style.width = originalWidth;
+      setActiveTab(originalTab);
+      setGeneratingPdf(false);
+      isExportingPdfRef.current = false;
+    }
+
+    // Generate the multi-page PDF using Landscape A4
+    if (tabResults.some(r => r.images.length > 0)) {
+      try {
+        const pdf = new jsPDF('l', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const gap = 5;
+        const contentWidth = pdfWidth - 2 * margin; // 277mm
+        
+        let isFirstPage = true;
+
+        for (let i = 0; i < tabResults.length; i++) {
+          const tabResult = tabResults[i];
+          if (tabResult.images.length === 0) continue;
+
+          if (!isFirstPage) {
+            pdf.addPage();
+          }
+          isFirstPage = false;
+
+          let yPosition = margin;
+
+          for (let j = 0; j < tabResult.images.length; j++) {
+            const card = tabResult.images[j];
+            const imgHeight = (card.height * contentWidth) / card.width;
+
+            // Check if card fits on the current page.
+            // If it exceeds remaining space, but CAN fit on a single fresh page, we push it to the next page!
+            if (j > 0 && yPosition + imgHeight + gap > pdfHeight - margin) {
+              if (yPosition > margin && imgHeight <= pdfHeight - 2 * margin) {
+                pdf.addPage();
+                yPosition = margin;
+
+                // Add running header
+                pdf.setFontSize(8);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(150, 150, 150);
+                pdf.text(`${tabResult.tabTitle} (Continued) | Report Period: ${dateRangeStr}`, margin, margin);
+                yPosition += 6;
+              }
+            }
+
+            // Draw the card. If it is taller than the entire page area (like long stats or daily charts),
+            // slice it dynamically.
+            if (imgHeight > pdfHeight - yPosition - margin) {
+              // If it doesn't fit in the remaining space but COULD fit on a fresh page, push first!
+              if (yPosition > margin && imgHeight <= pdfHeight - 2 * margin) {
+                pdf.addPage();
+                yPosition = margin;
+                
+                // Add running header
+                pdf.setFontSize(8);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(150, 150, 150);
+                pdf.text(`${tabResult.tabTitle} (Continued) | Report Period: ${dateRangeStr}`, margin, margin);
+                yPosition += 6;
+              }
+
+              let heightLeft = imgHeight;
+              let slicePosition = yPosition;
+              let firstSlice = true;
+
+              while (heightLeft > 0) {
+                if (!firstSlice) {
+                  pdf.addPage();
+                  slicePosition = margin;
+                }
+                firstSlice = false;
+
+                pdf.addImage(card.imgData, 'JPEG', margin, slicePosition, contentWidth, imgHeight);
+
+                const printedHeight = pdfHeight - slicePosition - margin;
+                heightLeft -= printedHeight;
+                slicePosition -= printedHeight;
+              }
+              yPosition = pdfHeight - margin;
+            } else {
+              pdf.addImage(card.imgData, 'JPEG', margin, yPosition, contentWidth, imgHeight);
+              yPosition += imgHeight + gap;
+            }
+          }
+        }
+
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const rangeStr = isCompareNow ? 'compare' : `${dateRangeDays}d`;
+        const fileName = `nightscout_report_${rangeStr}_${dateStr}.pdf`;
+        pdf.save(fileName);
+      } catch (err: any) {
+        console.error('[PDF EXPORT] Error compiling or saving PDF:', err);
+        if (err && err.stack) {
+          console.error('[PDF EXPORT] Stack trace:', err.stack);
+        }
+      }
+    } else {
+      console.warn('[PDF EXPORT] Warning: No images were successfully captured, skipping PDF creation.');
+    }
+  };
+
 
   // Recalculate metrics when preferred unit changes, without re-fetching
   useEffect(() => {
@@ -521,15 +817,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
               {/* Icon Bar */}
               <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
-                <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" title="Download PDF">
-                  <Download className="h-4 w-4" />
+                <button 
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" 
+                  title="Download PDF"
+                  onClick={handleExportPDF}
+                >
+                  <FileText className="h-4 w-4" />
                 </button>
                 <button 
                   className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" 
                   title="Export CSV"
                   onClick={handleExportCSV}
                 >
-                  <FileSpreadsheet className="h-4 w-4" />
+                  <Download className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -564,7 +864,29 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               <p className="text-xs font-bold text-slate-400 animate-pulse">Loading Nightscout data...</p>
             </div>
           ) : metrics ? (
-            <div className="space-y-6">
+            <div id="report-content-container" className="space-y-6">
+              {generatingPdf && (
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between shrink-0 mb-4">
+                  <div>
+                    <h1 className="text-base font-black text-slate-800 uppercase tracking-wider">
+                      {activeTab === 'overview' && 'Overview Report'}
+                      {activeTab === 'patterns' && 'Patterns Report'}
+                      {activeTab === 'overlay' && 'Weekly Overlay Report'}
+                      {activeTab === 'daily' && 'Daily Glucose Report'}
+                      {activeTab === 'compare' && 'Compare Report'}
+                      {activeTab === 'stats' && 'Glucose & Insulin Statistics'}
+                      {activeTab === 'agp' && 'Ambulatory Glucose Profile (AGP) Report'}
+                    </h1>
+                    <p className="text-[9px] text-slate-500 mt-0.5 font-bold">
+                      Report Period: {dateRangeStr} ({dateRangeDays} days)
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-black text-[#72B100] tracking-tight">NIGHTSCOUT LUCID</div>
+                    <div className="text-[9px] text-slate-400 mt-0.5 font-bold">Generated on {new Date().toLocaleDateString()}</div>
+                  </div>
+                </div>
+              )}
 
               {/* OVERVIEW TAB */}
               {activeTab === 'overview' && (
@@ -2127,6 +2449,25 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
         </main>
       </div>
+
+      {generatingPdf && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center space-y-4 border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative mx-auto h-12 w-12">
+              <div className="h-12 w-12 rounded-full border-4 border-slate-100"></div>
+              <div className="absolute top-0 left-0 h-12 w-12 rounded-full border-4 border-t-indigo-600 animate-spin"></div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-800">Generating PDF Report</h3>
+            <p className="text-sm text-slate-500 font-medium">Processing page {pdfProgress} of 7...</p>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-indigo-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${(pdfProgress / 7) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
