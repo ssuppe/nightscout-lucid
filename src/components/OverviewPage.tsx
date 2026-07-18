@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   AlertTriangle,
-  Printer,
   Download,
-  Mail,
-  Share2,
   HelpCircle,
   ChevronDown,
   ChevronRight,
   Smartphone,
-  Award
+  Award,
+  FileSpreadsheet
 } from 'lucide-react';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 import type { NightscoutEntry, NightscoutTreatment } from '../utils/nightscout';
@@ -20,6 +18,7 @@ import {
   deduplicateTreatments
 } from '../utils/metrics';
 import type { GlucoseMetrics } from '../utils/metrics';
+import { generateCSV } from '../utils/csvExport';
 import { AGPChart } from './AGPChart';
 import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 import { DailyMiniChart } from './DailyMiniChart';
@@ -162,6 +161,37 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     // If not changing the compare boundary, don't reload
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCompareNow]);
+
+  const handleExportCSV = () => {
+    const limitTime = new Date();
+    limitTime.setDate(limitTime.getDate() - dateRangeDays);
+    limitTime.setHours(0, 0, 0, 0);
+    const limitTimestamp = limitTime.getTime();
+
+    const filteredEntries = isCompareNow ? entries : entries.filter(e => e.date >= limitTimestamp);
+    const filteredTreatments = isCompareNow ? treatments : treatments.filter(t => {
+      const tTime = t.date || new Date(t.created_at).getTime();
+      return tTime >= limitTimestamp;
+    });
+
+    const csvContent = generateCSV(filteredEntries, filteredTreatments, units);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const rangeStr = isCompareNow ? 'compare' : `${dateRangeDays}d`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `nightscout_export_${rangeStr}_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Recalculate metrics when preferred unit changes, without re-fetching
   useEffect(() => {
@@ -491,17 +521,15 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
               {/* Icon Bar */}
               <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
-                <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" title="Print">
-                  <Printer className="h-4 w-4" />
-                </button>
                 <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" title="Download PDF">
                   <Download className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" title="Email Reports">
-                  <Mail className="h-4 w-4" />
-                </button>
-                <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" title="Export CSV">
-                  <Share2 className="h-4 w-4" />
+                <button 
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer" 
+                  title="Export CSV"
+                  onClick={handleExportCSV}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
                 </button>
               </div>
             </div>
