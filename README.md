@@ -18,6 +18,8 @@ See the demo at [https://goodnumbers.net/clarity](https://goodnumbers.net/clarit
 - **Units toggle**  -  Switch between mg/dL and mmol/L at any time
 - **Date range**  -  7, 14, 30, or 90-day windows
 - **Session-only**  -  Credentials are held in memory; nothing is persisted to a server
+- **PDF Download**  -  Compile and download a comprehensive multi-page, layout-aware PDF report including all charts and statistics tables with custom headers and clean page breaks.
+- **CSV Export**  -  Export raw glucose entry levels and insulin/carb treatment logs directly into a formatted CSV spreadsheet.
 
 ---
 
@@ -146,7 +148,7 @@ The AGP screen generates an Ambulatory Glucose Profile report featuring standard
 npm test
 ```
 
-Runs the full Vitest suite (44 tests across components and utilities).
+Runs the full Vitest suite (92 tests across components and utilities).
 
 ---
 

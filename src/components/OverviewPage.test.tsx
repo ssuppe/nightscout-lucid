@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { OverviewPage } from './OverviewPage';
+import { OverviewPage, resolveOklchStrings, oklchCache } from './OverviewPage';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 
 // Mock child chart components to avoid canvas rendering dependencies during page-level tests
@@ -25,6 +25,36 @@ vi.mock('./DailyStatsTable', () => ({
 vi.mock('./HourlyStatsTable', () => ({
   HourlyStatsTable: () => <div data-testid="mock-hourly-stats-table" />,
 }));
+
+// Mock html2canvas and jspdf
+vi.mock('html2canvas', () => ({
+  default: vi.fn().mockResolvedValue({
+    toDataURL: () => 'data:image/jpeg;base64,mockImage',
+  }),
+}));
+
+vi.mock('jspdf', () => {
+  const mockjsPDF = vi.fn().mockImplementation(() => ({
+    internal: {
+      pageSize: {
+        getWidth: () => 297,
+        getHeight: () => 210,
+      },
+    },
+    getImageProperties: () => ({ width: 100, height: 100 }),
+    addPage: vi.fn(),
+    addImage: vi.fn(),
+    save: vi.fn(),
+    setFontSize: vi.fn(),
+    setFont: vi.fn(),
+    setTextColor: vi.fn(),
+    text: vi.fn(),
+  }));
+  return {
+    default: mockjsPDF,
+    jsPDF: mockjsPDF,
+  };
+});
 
 // Mock NightscoutClient
 const mockClient = {
@@ -568,6 +598,70 @@ describe('OverviewPage', () => {
     expect(revokeObjectURLMock).toHaveBeenCalled();
 
     createElementSpy.mockRestore();
+  });
+
+  it('triggers PDF download and displays progress bar overlay', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const downloadPdfBtn = screen.getByTitle('Download PDF');
+    expect(downloadPdfBtn).toBeInTheDocument();
+
+    // Click Download PDF button
+    fireEvent.click(downloadPdfBtn);
+
+    // Verify progress overlay is rendered
+    await waitFor(() => {
+      expect(screen.getByText('Generating PDF Report')).toBeInTheDocument();
+      expect(screen.getByText(/Processing page [1-7] of 7/i)).toBeInTheDocument();
+    });
+
+    // Wait until generation overlay finishes
+    await waitFor(() => {
+      expect(screen.queryByText('Generating PDF Report')).not.toBeInTheDocument();
+    }, { timeout: 5000 }); // Wait longer if needed, but our mocked delay should run fast!
+  });
+});
+
+describe('Color space translation unit tests', () => {
+  beforeEach(() => {
+    oklchCache.clear();
+  });
+
+  it('handles empty, null, or non-string inputs cleanly', () => {
+    expect(resolveOklchStrings('')).toBe('');
+    expect(resolveOklchStrings(null as any)).toBeNull();
+    expect(resolveOklchStrings(undefined as any)).toBeUndefined();
+    expect(resolveOklchStrings(123 as any)).toBe(123 as any);
+  });
+
+  it('ignores standard color formats like hex, rgb, rgba, and named colors', () => {
+    expect(resolveOklchStrings('#ffffff')).toBe('#ffffff');
+    expect(resolveOklchStrings('rgb(255, 255, 255)')).toBe('rgb(255, 255, 255)');
+    expect(resolveOklchStrings('rgba(0, 0, 0, 0.5)')).toBe('rgba(0, 0, 0, 0.5)');
+    expect(resolveOklchStrings('red')).toBe('red');
+  });
+
+  it('identifies and translates oklch and oklab functions in complex CSS statements', () => {
+    // In JSDOM test runner, Canvas returns 0 alpha, so it falls back to white (rgb(255, 255, 255))
+    // unless it recognizes it as transparent oklch.
+    expect(resolveOklchStrings('oklch(0.5 0.2 280)')).toBe('rgb(255, 255, 255)');
+    expect(resolveOklchStrings('1px solid oklch(0.5 0.2 280)')).toBe('1px solid rgb(255, 255, 255)');
+    expect(resolveOklchStrings('oklab(0.5 0.2 280)')).toBe('rgb(255, 255, 255)');
+  });
+
+  it('handles transparent oklch notations by returning transparent rgba', () => {
+    expect(resolveOklchStrings('oklch(0 0 0 / 0)')).toBe('rgba(0, 0, 0, 0)');
+    expect(resolveOklchStrings('oklch(0 0 0 /0)')).toBe('rgba(0, 0, 0, 0)');
+  });
+
+  it('utilizes cached values for duplicate lookups to skip canvas rendering', () => {
+    oklchCache.set('oklch(1 2 3)', 'rgb(10, 20, 30)');
+    expect(resolveOklchStrings('oklch(1 2 3)')).toBe('rgb(10, 20, 30)');
   });
 });
 
