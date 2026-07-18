@@ -523,6 +523,52 @@ describe('OverviewPage', () => {
       expect(current.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
   });
+
+  it('simplifies reports header buttons and handles CSV export click', async () => {
+    // mock URL.createObjectURL and URL.revokeObjectURL
+    const createObjectURLMock = vi.fn().mockReturnValue('blob:mock-url');
+    const revokeObjectURLMock = vi.fn();
+    window.URL.createObjectURL = createObjectURLMock;
+    window.URL.revokeObjectURL = revokeObjectURLMock;
+
+    // spy on click on link/download
+    const clickMock = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+      const el = originalCreateElement(tagName);
+      if (tagName === 'a') {
+        el.click = clickMock;
+      }
+      return el;
+    });
+
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    // Verify Printer and Email button do NOT exist
+    expect(screen.queryByTitle('Print')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Email Reports')).not.toBeInTheDocument();
+
+    // Verify Download PDF and Export CSV button exist
+    const downloadPdfBtn = screen.getByTitle('Download PDF');
+    const exportCsvBtn = screen.getByTitle('Export CSV');
+    expect(downloadPdfBtn).toBeInTheDocument();
+    expect(exportCsvBtn).toBeInTheDocument();
+
+    // Click Export CSV button
+    fireEvent.click(exportCsvBtn);
+
+    // Verify CSV trigger and link click
+    expect(createObjectURLMock).toHaveBeenCalled();
+    expect(clickMock).toHaveBeenCalled();
+    expect(revokeObjectURLMock).toHaveBeenCalled();
+
+    createElementSpy.mockRestore();
+  });
 });
 
 
