@@ -258,6 +258,42 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+  const sliceCanvas = (
+    canvas: any,
+    sx: number,
+    sy: number,
+    sWidth: number,
+    sHeight: number
+  ): string => {
+    if (!canvas || typeof canvas.getContext !== 'function') {
+      if (canvas && typeof canvas.toDataURL === 'function') {
+        return canvas.toDataURL('image/jpeg', 0.95);
+      }
+      return '';
+    }
+
+    const tempCanvas = document.createElement('canvas');
+    const widthInt = Math.max(1, Math.round(sWidth));
+    const heightInt = Math.max(1, Math.round(sHeight));
+    tempCanvas.width = widthInt;
+    tempCanvas.height = heightInt;
+    const ctx = tempCanvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(
+        canvas,
+        Math.round(sx),
+        Math.round(sy),
+        widthInt,
+        heightInt,
+        0,
+        0,
+        widthInt,
+        heightInt
+      );
+      return tempCanvas.toDataURL('image/jpeg', 0.95);
+    }
+    return '';
+  };
   const handleExportPDF = async () => {
     setGeneratingPdf(true);
     const originalTab = activeTab;
@@ -278,7 +314,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     interface TabResult {
       tabName: string;
       tabTitle: string;
-      images: { imgData: string; width: number; height: number }[];
+      images: { canvas?: any; imgData: string; width: number; height: number }[];
     }
     const tabResults: TabResult[] = [];
 
@@ -320,7 +356,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         // Wait for ECharts initial rendering and layout adjustments
         await delay(1500);
 
-        const tabImages: { imgData: string; width: number; height: number }[] = [];
+        const tabImages: { canvas?: any; imgData: string; width: number; height: number }[] = [];
         
         // Get child elements inside the tab container to capture individually
         const childElements = Array.from(container.children).filter(
@@ -362,6 +398,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             });
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
             tabImages.push({
+              canvas,
               imgData,
               width: canvas.width,
               height: canvas.height,
@@ -484,7 +521,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                 const actualPrintedHeight = Math.min(availableHeight, heightLeft);
 
-                pdf.addImage(card.imgData, 'JPEG', margin, currentSliceY - offset, contentWidth, imgHeight);
+                let sliceImgData = card.imgData;
+                if (card.canvas) {
+                  const scaleRatio = card.width / contentWidth;
+                  sliceImgData = sliceCanvas(
+                    card.canvas,
+                    0,
+                    offset * scaleRatio,
+                    card.width,
+                    actualPrintedHeight * scaleRatio
+                  );
+                }
+
+                pdf.addImage(sliceImgData, 'JPEG', margin, currentSliceY, contentWidth, actualPrintedHeight);
 
                 heightLeft -= actualPrintedHeight;
                 offset += actualPrintedHeight;

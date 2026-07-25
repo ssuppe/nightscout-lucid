@@ -3,6 +3,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { OverviewPage, resolveOklchStrings, oklchCache } from './OverviewPage';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
 
+// Mock global HTMLCanvasElement methods for JSDOM
+HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+  drawImage: vi.fn(),
+}) as any;
+HTMLCanvasElement.prototype.toDataURL = vi.fn().mockReturnValue('data:image/jpeg;base64,mockSliceImage');
+
 // Mock child chart components to avoid canvas rendering dependencies during page-level tests
 vi.mock('./AGPChart', () => ({
   AGPChart: () => <div data-testid="mock-agp-chart" />,
@@ -34,6 +40,9 @@ vi.mock('html2canvas', () => ({
     toDataURL: () => 'data:image/jpeg;base64,mockImage',
     width: mockCanvasDimensions.width,
     height: mockCanvasDimensions.height,
+    getContext: () => ({
+      drawImage: vi.fn(),
+    }),
   })),
 }));
 
@@ -662,9 +671,12 @@ describe('OverviewPage', () => {
     // Assert that we called addImage
     expect(mockAddImage.mock.calls.length).toBeGreaterThan(0);
 
-    // Check if we have any calls where the Y coordinate is negative (indicating correct shift/slice).
-    const negativeYCalls = mockAddImage.mock.calls.filter(call => call[3] < 0);
-    expect(negativeYCalls.length).toBeGreaterThan(0);
+    // Since we no longer use negative coordinates, check that addPage was called to create the continuation pages
+    expect(mockAddPage.mock.calls.length).toBeGreaterThan(0);
+    
+    // Also, verify that all image slices are drawn at positive Y coordinates (e.g. >= 10)
+    const allYCoords = mockAddImage.mock.calls.map(call => call[3]);
+    expect(allYCoords.every(y => y >= 10)).toBe(true);
   });
 });
 
