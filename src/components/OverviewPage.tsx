@@ -430,8 +430,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
               }
             }
 
-            // Draw the card. If it is taller than the entire page area (like long stats or daily charts),
-            // slice it dynamically.
             if (imgHeight > pdfHeight - yPosition - margin) {
               // If it doesn't fit in the remaining space but COULD fit on a fresh page, push first!
               if (yPosition > margin && imgHeight <= pdfHeight - 2 * margin) {
@@ -444,24 +442,53 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 pdf.setTextColor(150, 150, 150);
                 pdf.text(`${tabResult.tabTitle} (Continued) | Report Period: ${dateRangeStr}`, margin, margin);
                 yPosition += 6;
+              } else if (pdfHeight - yPosition - margin < 15) {
+                // If there is very little space left on the current page (e.g. < 15mm),
+                // push to a new page immediately before slicing.
+                pdf.addPage();
+                yPosition = margin;
+                
+                // Add running header
+                pdf.setFontSize(8);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setTextColor(150, 150, 150);
+                pdf.text(`${tabResult.tabTitle} (Continued) | Report Period: ${dateRangeStr}`, margin, margin);
+                yPosition += 6;
               }
 
               let heightLeft = imgHeight;
-              let slicePosition = yPosition;
               let firstSlice = true;
+              let offset = 0;
 
               while (heightLeft > 0) {
                 if (!firstSlice) {
                   pdf.addPage();
-                  slicePosition = margin;
                 }
+
+                let availableHeight = pdfHeight - 2 * margin;
+                let currentSliceY = margin;
+
+                if (firstSlice) {
+                  currentSliceY = yPosition;
+                  availableHeight = pdfHeight - yPosition - margin;
+                }
+
+                if (!firstSlice) {
+                  pdf.setFontSize(8);
+                  pdf.setFont('helvetica', 'bold');
+                  pdf.setTextColor(150, 150, 150);
+                  pdf.text(`${tabResult.tabTitle} (Continued) | Report Period: ${dateRangeStr}`, margin, margin);
+                  currentSliceY += 6;
+                  availableHeight -= 6;
+                }
+
+                const actualPrintedHeight = Math.min(availableHeight, heightLeft);
+
+                pdf.addImage(card.imgData, 'JPEG', margin, currentSliceY - offset, contentWidth, imgHeight);
+
+                heightLeft -= actualPrintedHeight;
+                offset += actualPrintedHeight;
                 firstSlice = false;
-
-                pdf.addImage(card.imgData, 'JPEG', margin, slicePosition, contentWidth, imgHeight);
-
-                const printedHeight = pdfHeight - slicePosition - margin;
-                heightLeft -= printedHeight;
-                slicePosition -= printedHeight;
               }
               yPosition = pdfHeight - margin;
             } else {

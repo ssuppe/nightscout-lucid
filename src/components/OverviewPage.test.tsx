@@ -27,11 +27,20 @@ vi.mock('./HourlyStatsTable', () => ({
 }));
 
 // Mock html2canvas and jspdf
+let mockCanvasDimensions = { width: 100, height: 100 };
+
 vi.mock('html2canvas', () => ({
-  default: vi.fn().mockResolvedValue({
+  default: vi.fn().mockImplementation(() => Promise.resolve({
     toDataURL: () => 'data:image/jpeg;base64,mockImage',
-  }),
+    width: mockCanvasDimensions.width,
+    height: mockCanvasDimensions.height,
+  })),
 }));
+
+const mockAddPage = vi.fn();
+const mockAddImage = vi.fn();
+const mockSave = vi.fn();
+const mockText = vi.fn();
 
 vi.mock('jspdf', () => {
   const mockjsPDF = vi.fn().mockImplementation(() => ({
@@ -42,13 +51,13 @@ vi.mock('jspdf', () => {
       },
     },
     getImageProperties: () => ({ width: 100, height: 100 }),
-    addPage: vi.fn(),
-    addImage: vi.fn(),
-    save: vi.fn(),
+    addPage: mockAddPage,
+    addImage: mockAddImage,
+    save: mockSave,
     setFontSize: vi.fn(),
     setFont: vi.fn(),
     setTextColor: vi.fn(),
-    text: vi.fn(),
+    text: mockText,
   }));
   return {
     default: mockjsPDF,
@@ -69,6 +78,11 @@ describe('OverviewPage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCanvasDimensions = { width: 100, height: 100 };
+    mockAddPage.mockClear();
+    mockAddImage.mockClear();
+    mockSave.mockClear();
+    mockText.mockClear();
   });
 
   const setupMockData = (avgGlucose: number) => {
@@ -624,6 +638,33 @@ describe('OverviewPage', () => {
     await waitFor(() => {
       expect(screen.queryByText('Generating PDF Report')).not.toBeInTheDocument();
     }, { timeout: 5000 }); // Wait longer if needed, but our mocked delay should run fast!
+  });
+
+  it('correctly slices images that do not fit on a single page without duplicating the top of the image', async () => {
+    // Set a tall height to trigger the height-slicing logic
+    mockCanvasDimensions = { width: 277, height: 400 };
+
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const downloadPdfBtn = screen.getByTitle('Download PDF');
+    fireEvent.click(downloadPdfBtn);
+
+    // Wait until the PDF generation finishes
+    await waitFor(() => {
+      expect(screen.queryByText('Generating PDF Report')).not.toBeInTheDocument();
+    }, { timeout: 5000 });
+
+    // Assert that we called addImage
+    expect(mockAddImage.mock.calls.length).toBeGreaterThan(0);
+
+    // Check if we have any calls where the Y coordinate is negative (indicating correct shift/slice).
+    const negativeYCalls = mockAddImage.mock.calls.filter(call => call[3] < 0);
+    expect(negativeYCalls.length).toBeGreaterThan(0);
   });
 });
 
