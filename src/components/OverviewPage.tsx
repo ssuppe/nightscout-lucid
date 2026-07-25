@@ -1999,91 +1999,93 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start text-left">
                   
                   {/* Filters sidebar */}
-                  <div className="lg:col-span-3 space-y-6">
-                    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
-                      
-                      {/* Event Filtering */}
-                      <div>
-                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2.5">Event Filtering</h4>
-                        <div className="flex flex-col gap-2">
-                          <button
-                            onClick={() => setEventFilter('all')}
-                            className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
-                              eventFilter === 'all'
-                                ? 'bg-slate-100 text-slate-800 border-slate-300'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                            }`}
-                          >
-                            All Days
-                          </button>
-                          <button
-                            onClick={() => setEventFilter('highs')}
-                            className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
-                              eventFilter === 'highs'
-                                ? 'bg-amber-50 text-amber-700 border-amber-300'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                            }`}
-                          >
-                            Days with Highs (&gt; 180 / 10.0)
-                          </button>
-                          <button
-                            onClick={() => setEventFilter('lows')}
-                            className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
-                              eventFilter === 'lows'
-                                ? 'bg-red-50 text-red-700 border-red-300'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                            }`}
-                          >
-                            Days with Lows (&lt; 70 / 3.9)
-                          </button>
+                  {!generatingPdf && (
+                    <div className="lg:col-span-3 space-y-6">
+                      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
+                        
+                        {/* Event Filtering */}
+                        <div>
+                          <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2.5">Event Filtering</h4>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => setEventFilter('all')}
+                              className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
+                                eventFilter === 'all'
+                                  ? 'bg-slate-100 text-slate-800 border-slate-300'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              All Days
+                            </button>
+                            <button
+                              onClick={() => setEventFilter('highs')}
+                              className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
+                                eventFilter === 'highs'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              Days with Highs (&gt; 180 / 10.0)
+                            </button>
+                            <button
+                              onClick={() => setEventFilter('lows')}
+                              className={`w-full text-left rounded-lg px-3 py-2 text-xs font-bold transition border cursor-pointer ${
+                                eventFilter === 'lows'
+                                  ? 'bg-red-50 text-red-700 border-red-300'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                              }`}
+                            >
+                              Days with Lows (&lt; 70 / 3.9)
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Days of Week */}
+                        <div className="border-t border-slate-100 pt-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Days of Week</h4>
+                          <div className="space-y-2">
+                            {weekdays.map((day) => (
+                              <label key={day.value} className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedDays.includes(day.value)}
+                                  onChange={() => handleDayToggle(day.value)}
+                                  className="h-4 w-4 rounded border-slate-300 text-[#72B100] focus:ring-[#72B100]/20 cursor-pointer"
+                                />
+                                <span>{day.label}</span>
+                              </label>
+                            ))}
+                          </div>
+
+                          {/* Quick controls */}
+                          <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-slate-50">
+                            <button
+                              onClick={selectAllDays}
+                              className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                            >
+                              All
+                            </button>
+                            <button
+                              onClick={selectWeekdays}
+                              className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                            >
+                              Weekdays
+                            </button>
+                            <button
+                              onClick={selectWeekends}
+                              className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
+                            >
+                              Weekends
+                            </button>
+                          </div>
+                        </div>
+
                       </div>
-
-                      {/* Days of Week */}
-                      <div className="border-t border-slate-100 pt-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-3">Days of Week</h4>
-                        <div className="space-y-2">
-                          {weekdays.map((day) => (
-                            <label key={day.value} className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={selectedDays.includes(day.value)}
-                                onChange={() => handleDayToggle(day.value)}
-                                className="h-4 w-4 rounded border-slate-300 text-[#72B100] focus:ring-[#72B100]/20 cursor-pointer"
-                              />
-                              <span>{day.label}</span>
-                            </label>
-                          ))}
-                        </div>
-
-                        {/* Quick controls */}
-                        <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-slate-50">
-                          <button
-                            onClick={selectAllDays}
-                            className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
-                          >
-                            All
-                          </button>
-                          <button
-                            onClick={selectWeekdays}
-                            className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
-                          >
-                            Weekdays
-                          </button>
-                          <button
-                            onClick={selectWeekends}
-                            className="rounded bg-slate-50 border border-slate-200 px-2.5 py-1 text-[9px] font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
-                          >
-                            Weekends
-                          </button>
-                        </div>
-                      </div>
-
                     </div>
-                  </div>
+                  )}
 
                   {/* Weekly overlay list */}
-                  <div className="lg:col-span-9 space-y-6">
+                  <div className={`${generatingPdf ? 'lg:col-span-12' : 'lg:col-span-9'} space-y-6`}>
                     {getWeeksArray().map((week, idx) => {
                       const weekEntries = displayEntries.filter(
                         e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
