@@ -273,22 +273,27 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
 
     const tempCanvas = document.createElement('canvas');
-    const widthInt = Math.max(1, Math.round(sWidth));
-    const heightInt = Math.max(1, Math.round(sHeight));
-    tempCanvas.width = widthInt;
-    tempCanvas.height = heightInt;
+    
+    // Clamp cropping coordinates to source canvas boundaries defensively
+    const startX = Math.min(canvas.width - 1, Math.max(0, Math.round(sx)));
+    const startY = Math.min(canvas.height - 1, Math.max(0, Math.round(sy)));
+    const cropWidth = Math.min(canvas.width - startX, Math.max(1, Math.round(sWidth)));
+    const cropHeight = Math.min(canvas.height - startY, Math.max(1, Math.round(sHeight)));
+
+    tempCanvas.width = cropWidth;
+    tempCanvas.height = cropHeight;
     const ctx = tempCanvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(
         canvas,
-        Math.round(sx),
-        Math.round(sy),
-        widthInt,
-        heightInt,
+        startX,
+        startY,
+        cropWidth,
+        cropHeight,
         0,
         0,
-        widthInt,
-        heightInt
+        cropWidth,
+        cropHeight
       );
       return tempCanvas.toDataURL('image/jpeg', 0.95);
     }
