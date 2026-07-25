@@ -540,6 +540,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                 pdf.addImage(sliceImgData, 'JPEG', margin, currentSliceY, contentWidth, actualPrintedHeight);
 
+                yPosition = currentSliceY + actualPrintedHeight + gap;
                 heightLeft -= actualPrintedHeight;
                 offset += actualPrintedHeight;
                 firstSlice = false;
@@ -1271,6 +1272,27 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* CGM Sensor Active Wear details bar */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 shrink-0">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 text-center sm:text-left">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sensor Active Wear</span>
+                        <div className="mt-1 text-2xl font-extrabold text-slate-800">{wearPercentage}%</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">Goal is &gt; 70% active wear</div>
+                      </div>
+                      <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total CGM Readings</span>
+                        <div className="mt-1 text-2xl font-extrabold text-slate-800">{displayEntries.length}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Readings over {dateRangeDays} days</div>
+                      </div>
+                      <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Average Readings/Day</span>
+                        <div className="mt-1 text-2xl font-extrabold text-slate-800">{avgReadingsPerDay}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Target is 288 readings/day</div>
+                      </div>
                     </div>
                   </div>
 
@@ -2466,27 +2488,6 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                 </div>
               )}
-
-              {/* CGM Sensor Active Wear details bar */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 shrink-0">
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 text-center sm:text-left">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sensor Active Wear</span>
-                    <div className="mt-1 text-2xl font-extrabold text-slate-800">{wearPercentage}%</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">Goal is &gt; 70% active wear</div>
-                  </div>
-                  <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total CGM Readings</span>
-                    <div className="mt-1 text-2xl font-extrabold text-slate-800">{displayEntries.length}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Readings over {dateRangeDays} days</div>
-                  </div>
-                  <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Average Readings/Day</span>
-                    <div className="mt-1 text-2xl font-extrabold text-slate-800">{avgReadingsPerDay}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Target is 288 readings/day</div>
-                  </div>
-                </div>
-              </div>
               
             </div>
           ) : (
