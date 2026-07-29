@@ -44,6 +44,13 @@ Adapt the image reference to either a local image or (optional) an image in your
     git clone https://github.com/ssuppe/nightscout-lucid
     ```
 
+    Optonally, update the local version of `Cadyfile.prod` with a more resent version from the the repository:
+    ```
+    cd docker-deploy
+    cp ../Cadyfile.prod .
+    ```
+
+
 3. Build the image
 
     ```
