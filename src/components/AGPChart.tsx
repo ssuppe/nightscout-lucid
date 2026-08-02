@@ -16,15 +16,29 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
   const targetMin = isMgdl ? 70 : 3.9;
   const targetMax = isMgdl ? 180 : 10.0;
 
+  // 1. Initialize and dispose chart instance on mount/unmount
   useEffect(() => {
     if (!chartRef.current) return;
+    
+    const chart = echarts.init(chartRef.current);
+    chartInstance.current = chart;
+    
+    const handleResize = () => {
+      chart.resize();
+    };
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
 
-    // Initialize ECharts
-    if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current);
-    }
-
+  // 2. Update option whenever data/options change
+  useEffect(() => {
     const chart = chartInstance.current;
+    if (!chart) return;
 
     // Prepare data
     const timeLabels = percentiles.map(b => b.timeLabel);
@@ -40,9 +54,8 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
 
     const medianP50 = percentiles.map(b => b.p50);
 
-
-
     const option: echarts.EChartsOption = {
+      animation: false,
       title: {
         show: false
       },
@@ -237,16 +250,7 @@ export const AGPChart: React.FC<AGPChartProps> = ({ percentiles, units }) => {
       ]
     };
 
-    chart.setOption(option);
-
-    const handleResize = () => {
-      chart.resize();
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    chart.setOption(option, { notMerge: true, lazyUpdate: false });
   }, [percentiles, units, isMgdl, targetMin, targetMax]);
 
   return (
