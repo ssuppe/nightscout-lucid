@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { OverviewPage, resolveOklchStrings, oklchCache } from './OverviewPage';
 import { NightscoutClient, GlucoseUnit } from '../utils/nightscout';
+import html2canvas from 'html2canvas';
 
 // Mock global HTMLCanvasElement methods for JSDOM
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
@@ -677,6 +678,110 @@ describe('OverviewPage', () => {
     // Also, verify that all image slices are drawn at positive Y coordinates (e.g. >= 10)
     const allYCoords = mockAddImage.mock.calls.map(call => call[3]);
     expect(allYCoords.every(y => y >= 10)).toBe(true);
+  });
+
+  it('captures individual cards with .pdf-card class instead of the single tab wrapper', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const downloadPdfBtn = screen.getByTitle('Download PDF');
+    
+    // Clear mock calls to start clean
+    const html2canvasMock = vi.mocked(html2canvas);
+    html2canvasMock.mockClear();
+
+    fireEvent.click(downloadPdfBtn);
+
+    // Wait until generation overlay finishes (which means export is done)
+    await waitFor(() => {
+      expect(screen.queryByText('Generating PDF Report')).not.toBeInTheDocument();
+    }, { timeout: 5000 });
+
+    // Assert that html2canvas was called on multiple elements containing 'pdf-card' class
+    expect(html2canvasMock.mock.calls.length).toBeGreaterThan(1);
+    
+    const capturedElements = html2canvasMock.mock.calls.map(call => call[0] as HTMLElement);
+    
+    // Every captured element should have the 'pdf-card' class
+    expect(capturedElements.some(el => el.classList.contains('pdf-card'))).toBe(true);
+  });
+
+  it('does not insert a page break for the first content card (j === 1) to ensure it renders on page 1 with the header', async () => {
+    let isPatternsTab = false;
+    vi.mocked(html2canvas).mockImplementation((element) => {
+      if (element.textContent?.includes('Patterns Report')) {
+        isPatternsTab = true;
+      } else if (element.textContent?.includes('Report Period:')) {
+        isPatternsTab = false; // Reset for other tabs
+      }
+
+      const isHeader = element.textContent?.includes('Report Period:') || false;
+      let height = 10;
+      if (isPatternsTab) {
+        if (isHeader) height = 40;
+        else height = 142; // This card normally triggers a break if j > 0, but since j === 1 it won't!
+      }
+
+      return Promise.resolve({
+        toDataURL: () => 'data:image/jpeg;base64,mockImage',
+        width: 277,
+        height: height,
+        getContext: () => ({ drawImage: vi.fn() }),
+      } as any);
+    });
+
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const downloadPdfBtn = screen.getByTitle('Download PDF');
+    mockAddPage.mockClear();
+
+    fireEvent.click(downloadPdfBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Generating PDF Report')).not.toBeInTheDocument();
+    });
+
+    // Expect that no "Patterns Report (Continued)" text was drawn, proving that card 1 (j === 1)
+    // was not pushed to a new page and fits on page 1 alongside the header.
+    const patternsContinuedCalls = mockText.mock.calls.filter(call => 
+      typeof call[0] === 'string' && call[0].includes('Patterns Report (Continued)')
+    );
+    expect(patternsContinuedCalls.length).toBe(0);
+  });
+
+  it('applies the correct desktop-forcing widths and flex layouts to daily log rows during PDF generation', async () => {
+    setupMockData(120);
+    render(<OverviewPage client={mockClient} preferredUnits={GlucoseUnit.MGDL} onDisconnect={mockOnDisconnect} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument();
+    });
+
+    const downloadPdfBtn = screen.getByTitle('Download PDF');
+    fireEvent.click(downloadPdfBtn);
+
+    // Wait for the daily logs tab content to render during the PDF tab cycling
+    const dailyRow = await screen.findByText('Monday, Jul 27', {}, { timeout: 4000 });
+    const rowContainer = dailyRow.closest('.pdf-card');
+    expect(rowContainer).toBeInTheDocument();
+    
+    // The row container should have flex-row (not flex-col md:flex-row)
+    expect(rowContainer?.className).toContain('flex-row');
+    expect(rowContainer?.className).not.toContain('flex-col');
+    
+    // The child text column should have w-60 (not w-full)
+    const textCol = dailyRow.parentElement;
+    expect(textCol?.className).toContain('w-60');
+    expect(textCol?.className).not.toContain('w-full');
   });
 });
 

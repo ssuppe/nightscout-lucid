@@ -61,6 +61,7 @@ export const DailyMiniChart: React.FC<DailyMiniChartProps> = ({
       : Math.max(targetMax + (isMgdl ? 25 : 1.5), maxSgv + (isMgdl ? 15 : 0.8));
 
     const option: echarts.EChartsOption = {
+      animation: false,
       grid: compact
         ? { left: 0, right: 0, top: 0, bottom: 0, containLabel: false }
         : { left: 32, right: 16, top: 8, bottom: 20 },
@@ -231,6 +232,8 @@ export const DailyMiniChart: React.FC<DailyMiniChartProps> = ({
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      chart.dispose();
+      chartInstance.current = null;
     };
   }, [entries, treatments, units, dayStart, compact]);
 

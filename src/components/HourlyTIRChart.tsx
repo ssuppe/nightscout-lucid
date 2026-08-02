@@ -29,6 +29,7 @@ export const HourlyTIRChart: React.FC<HourlyTIRChartProps> = ({ hourlyData, days
     const noDataData = hourlyData.map(d => d.noData ? 100 : 0);
 
     const option: echarts.EChartsOption = {
+      animation: false,
       title: {
         text: 'Time in Range by Hour of Day',
         subtext: `This graph shows your data averaged over ${days} days, with the bar charts for each hour of the date range.`,
@@ -196,6 +197,8 @@ export const HourlyTIRChart: React.FC<HourlyTIRChartProps> = ({ hourlyData, days
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      chart.dispose();
+      chartInstance.current = null;
     };
   }, [hourlyData, days]);
 

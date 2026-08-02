@@ -13,6 +13,7 @@ vi.mock('echarts', () => {
     init: vi.fn(() => ({
       setOption: mockSetOption,
       resize: mockResize,
+      dispose: vi.fn(),
     })),
   };
 });
