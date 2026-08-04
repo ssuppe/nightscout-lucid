@@ -21,6 +21,7 @@ import type { GlucoseMetrics } from '../utils/metrics';
 import { generateCSV } from '../utils/csvExport';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import * as echarts from 'echarts';
 import { AGPChart } from './AGPChart';
 import { HourlyGlucoseChart } from './HourlyGlucoseChart';
 import { DailyMiniChart } from './DailyMiniChart';
@@ -188,6 +189,96 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   };
 
+  // Memoized Compare Tab calculations to prevent array reference updates and redundant re-renders
+  const compareData = React.useMemo(() => {
+    const toA = new Date();
+    toA.setHours(23, 59, 59, 999);
+    const fromA = new Date();
+    fromA.setDate(toA.getDate() - dateRangeDays + 1);
+    fromA.setHours(0, 0, 0, 0);
+
+    const toB = new Date(fromA);
+    toB.setDate(fromA.getDate() - 1);
+    toB.setHours(23, 59, 59, 999);
+    const fromB = new Date(toB);
+    fromB.setDate(toB.getDate() - dateRangeDays + 1);
+    fromB.setHours(0, 0, 0, 0);
+
+    const formatDate = (d: Date) => d.toLocaleDateString(undefined, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    const labelA = `${formatDate(fromA)} - ${formatDate(toA)}`;
+    const labelB = `${formatDate(fromB)} - ${formatDate(toB)}`;
+
+    let rawEntriesA = entries.filter(e => e.date >= fromA.getTime() && e.date <= toA.getTime());
+    let rawEntriesB = entries.filter(e => e.date >= fromB.getTime() && e.date <= toB.getTime());
+
+    rawEntriesA = rawEntriesA.filter(e => compareDays.includes(new Date(e.date).getDay()));
+    rawEntriesB = rawEntriesB.filter(e => compareDays.includes(new Date(e.date).getDay()));
+
+    if (compareTimeOfDay === 'daytime') {
+      const filterDaytime = (e: NightscoutEntry) => {
+        const hr = new Date(e.date).getHours();
+        return hr >= 7 && hr < 22;
+      };
+      rawEntriesA = rawEntriesA.filter(filterDaytime);
+      rawEntriesB = rawEntriesB.filter(filterDaytime);
+    } else if (compareTimeOfDay === 'nighttime') {
+      const filterNighttime = (e: NightscoutEntry) => {
+        const hr = new Date(e.date).getHours();
+        return hr < 7 || hr >= 22;
+      };
+      rawEntriesA = rawEntriesA.filter(filterNighttime);
+      rawEntriesB = rawEntriesB.filter(filterNighttime);
+    }
+
+    if (compareEvent !== 'none') {
+      const getDaysWithEvent = (entriesList: NightscoutEntry[]) => {
+        const setOfDays = new Set<string>();
+        entriesList.forEach(e => {
+          const dStr = new Date(e.date).toDateString();
+          if (compareEvent === 'lows' && e.sgv < 70) {
+            setOfDays.add(dStr);
+          } else if (compareEvent === 'highs' && e.sgv > 180) {
+            setOfDays.add(dStr);
+          }
+        });
+        return setOfDays;
+      };
+
+      const daysA = getDaysWithEvent(rawEntriesA);
+      const daysB = getDaysWithEvent(rawEntriesB);
+
+      rawEntriesA = rawEntriesA.filter(e => daysA.has(new Date(e.date).toDateString()));
+      rawEntriesB = rawEntriesB.filter(e => daysB.has(new Date(e.date).toDateString()));
+    }
+
+    const metricsA = calculateGlucoseMetrics(rawEntriesA, units);
+    const metricsB = calculateGlucoseMetrics(rawEntriesB, units);
+
+    const activeDaysA = getActiveDays(rawEntriesA, dateRangeDays);
+    const activeDaysB = getActiveDays(rawEntriesB, dateRangeDays);
+
+    const wearPctA = Math.min(100, Math.round(((rawEntriesA.length / Math.max(activeDaysA, 1)) / 288) * 100));
+    const wearPctB = Math.min(100, Math.round(((rawEntriesB.length / Math.max(activeDaysB, 1)) / 288) * 100));
+
+    const percentilesA = calculateAGPPercentiles(rawEntriesA, units);
+    const percentilesB = calculateAGPPercentiles(rawEntriesB, units);
+
+    return {
+      toA, fromA, toB, fromB,
+      labelA, labelB,
+      rawEntriesA, rawEntriesB,
+      metricsA, metricsB,
+      wearPctA, wearPctB,
+      percentilesA, percentilesB
+    };
+  }, [entries, dateRangeDays, compareDays, compareTimeOfDay, compareEvent, units]);
+
   const isCompareNow = activeTab === 'compare';
 
   // Filter entries to only dateRangeDays for non-compare views
@@ -303,6 +394,24 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     setGeneratingPdf(true);
     const originalTab = activeTab;
 
+    // Load double date range days so all Compare tab charts have full prior period data.
+    // We do this by fetching directly without setting the page loading spinner.
+    try {
+      const to = new Date();
+      const from = new Date();
+      from.setDate(to.getDate() - dateRangeDays * 2);
+      const fetchedEntries = await client.fetchEntries(from, to);
+      setEntries(fetchedEntries);
+      try {
+        const fetchedTreatments = await client.fetchTreatments(from, to);
+        setTreatments(deduplicateTreatments(fetchedTreatments));
+      } catch (tErr) {
+        console.warn('Failed to load treatments for PDF:', tErr);
+      }
+    } catch (err) {
+      console.warn('Failed to load full compare period data for PDF export:', err);
+    }
+
     // Enable PDF export flag to prevent state changes from launching automatic fetches
     isExportingPdfRef.current = true;
 
@@ -334,6 +443,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     // Lock width to 1200px for print uniformity and scale consistency
     const originalWidth = container.style.width;
     container.style.width = '1200px';
+    window.dispatchEvent(new Event('resize'));
 
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, process.env.NODE_ENV === 'test' ? 50 : ms));
 
@@ -359,18 +469,70 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         setActiveTab(tabName);
 
         // Wait for ECharts initial rendering and layout adjustments
+        await delay(200);
+        window.dispatchEvent(new Event('resize'));
         await delay(1500);
 
         const tabImages: { canvas?: any; imgData: string; width: number; height: number }[] = [];
         
-        // Get child elements inside the tab container to capture individually
-        const childElements = Array.from(container.children).filter(
-          (el: any) => el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE'
-        );
+        // Get child elements inside the tab container to capture individually.
+        // We look for elements marked with the 'pdf-card' class first, filtering out nested cards.
+        const allCards = Array.from(container.querySelectorAll('.pdf-card')) as HTMLElement[];
+        const pdfCards = allCards.filter(card => {
+          let parent = card.parentElement;
+          while (parent && parent !== container) {
+            if (parent.classList.contains('pdf-card')) {
+              return false;
+            }
+            parent = parent.parentElement;
+          }
+          return true;
+        });
+
+        const childElements = pdfCards.length > 0
+          ? pdfCards
+          : Array.from(container.children).filter(
+              (el: any) => el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE'
+            ) as HTMLElement[];
 
         for (let j = 0; j < childElements.length; j++) {
           const child = childElements[j] as HTMLElement;
           
+          // Find ECharts instances in the child container and replace them with static images
+          const chartDivs = Array.from(child.querySelectorAll('div'))
+            .filter(div => echarts.getInstanceByDom(div) !== undefined);
+            
+          const replacements: { parent: HTMLElement; original: HTMLElement; img: HTMLImageElement }[] = [];
+          
+          chartDivs.forEach(div => {
+            const chart = echarts.getInstanceByDom(div);
+            if (chart && typeof chart.getDataURL === 'function') {
+              try {
+                // Export chart as a static PNG data URL (with double pixel ratio for high quality)
+                const dataUrl = chart.getDataURL({
+                  type: 'png',
+                  pixelRatio: 2,
+                  excludeComponents: ['toolbox']
+                });
+                
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.style.width = `${div.clientWidth}px`;
+                img.style.height = `${div.clientHeight}px`;
+                img.style.display = 'block';
+                
+                const parent = div.parentElement;
+                if (parent) {
+                  replacements.push({ parent, original: div, img });
+                  div.style.display = 'none';
+                  parent.appendChild(img);
+                }
+              } catch (err) {
+                console.error('[PDF EXPORT] Failed to export chart to static image:', err);
+              }
+            }
+          });
+
           // Temporarily override getComputedStyle during capture to resolve oklch/oklab/lch/lab colors
           const originalGetComputedStyle = window.getComputedStyle;
           window.getComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
@@ -412,6 +574,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             console.error(`[PDF EXPORT] [Page ${i + 1}/7] Failed to capture element ${j + 1}:`, err);
           } finally {
             window.getComputedStyle = originalGetComputedStyle;
+            
+            // Restore original chart divs and remove static image tags
+            replacements.forEach(({ parent, original, img }) => {
+              original.style.display = '';
+              parent.removeChild(img);
+            });
           }
         }
 
@@ -427,6 +595,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       setActiveTab(originalTab);
       setGeneratingPdf(false);
       isExportingPdfRef.current = false;
+
+      // If we are not on the Compare tab, restore the entries to single period days
+      if (originalTab !== 'compare') {
+        const to = new Date();
+        const from = new Date();
+        from.setDate(to.getDate() - dateRangeDays);
+        client.fetchEntries(from, to).then(fetched => {
+          setEntries(fetched);
+          client.fetchTreatments(from, to).then(t => {
+            setTreatments(deduplicateTreatments(t));
+          }).catch(() => {});
+        }).catch(() => {});
+      }
     }
 
     // Generate the multi-page PDF using Landscape A4
@@ -458,7 +639,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
             // Check if card fits on the current page.
             // If it exceeds remaining space, but CAN fit on a single fresh page, we push it to the next page!
-            if (j > 0 && yPosition + imgHeight + gap > pdfHeight - margin) {
+            if (j > 1 && yPosition + imgHeight + gap > pdfHeight - margin) {
               if (yPosition > margin && imgHeight <= pdfHeight - 2 * margin) {
                 pdf.addPage();
                 yPosition = margin;
@@ -474,7 +655,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
             if (imgHeight > pdfHeight - yPosition - margin) {
               // If it doesn't fit in the remaining space but COULD fit on a fresh page, push first!
-              if (yPosition > margin && imgHeight <= pdfHeight - 2 * margin) {
+              if (j > 1 && yPosition > margin && imgHeight <= pdfHeight - 2 * margin) {
                 pdf.addPage();
                 yPosition = margin;
                 
@@ -948,7 +1129,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           ) : metrics ? (
             <div id="report-content-container" className="space-y-6">
               {generatingPdf && (
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between shrink-0 mb-4">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex items-center justify-between shrink-0 mb-4 pdf-card">
                   <div>
                     <h1 className="text-base font-black text-slate-800 uppercase tracking-wider">
                       {activeTab === 'overview' && 'Overview Report'}
@@ -975,10 +1156,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 <div className="space-y-6">
                   
                   {/* Three-Card Statistics Panel */}
-                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  <div className={`grid ${generatingPdf ? 'grid-cols-12' : 'grid-cols-1 lg:grid-cols-12'} gap-6 pdf-card`}>
                     
                     {/* Card 1: Glucose statistics card */}
-                    <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <div className={`${generatingPdf ? 'col-span-5' : 'lg:col-span-5'} bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden`}>
                       <a href="#" className="absolute right-3 top-3 text-slate-300 hover:text-slate-500" title="Glossary">
                         <HelpCircle className="h-4 w-4" />
                       </a>
@@ -1013,7 +1194,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
 
                     {/* Card 2: Time in Range Card */}
-                    <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl shadow-sm relative p-5 flex flex-col justify-between">
+                    <div className={`${generatingPdf ? 'col-span-4' : 'lg:col-span-4'} bg-white border border-slate-200 rounded-xl shadow-sm relative p-5 flex flex-col justify-between`}>
                       <a href="#" className="absolute right-3 top-3 text-slate-300 hover:text-slate-500" title="Glossary">
                         <HelpCircle className="h-4 w-4" />
                       </a>
@@ -1083,7 +1264,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
 
                     {/* Card 3: Sensor Usage Card */}
-                    <div className="lg:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm relative p-5 flex flex-col justify-between">
+                    <div className={`${generatingPdf ? 'col-span-3' : 'lg:col-span-3'} bg-white border border-slate-200 rounded-xl shadow-sm relative p-5 flex flex-col justify-between`}>
                       <a href="#" className="absolute right-3 top-3 text-slate-300 hover:text-slate-500" title="Glossary">
                         <HelpCircle className="h-4 w-4" />
                       </a>
@@ -1118,7 +1299,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
 
                   {/* Trends Graph Block */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm pdf-card">
                     <h3 className="text-sm font-extrabold text-slate-700 mb-6">
                       This graph shows your data averaged over {dateRangeDays} days
                     </h3>
@@ -1129,7 +1310,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     />
 
                     {/* Dexcom EU Styled HTML Legend */}
-                    <div className="mt-6 flex flex-col md:flex-row items-center justify-center gap-8 border-t border-slate-100 pt-5 text-[11px] font-bold text-slate-400">
+                    <div className={`mt-6 flex ${generatingPdf ? 'flex-row' : 'flex-col md:flex-row'} items-center justify-center gap-8 border-t border-slate-100 pt-5 text-[11px] font-bold text-slate-400`}>
                       
                       <div className="flex items-center gap-2.5">
                         <span className="w-1.5 h-6 rounded bg-[#FCD116]" />
@@ -1159,7 +1340,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
 
                   {/* Patterns Box */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-left">
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-left pdf-card">
                     <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider mb-4">Patterns</h3>
                     
                     <h2 className="text-md font-black text-slate-800 mb-4">
@@ -1184,7 +1365,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
 
                   {/* Devices Section */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-left">
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-left pdf-card">
                     <h2 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider mb-4">Devices</h2>
                     
                     <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -1202,7 +1383,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                       {/* Device Content */}
                       {devicePanelExpanded && (
-                        <div className="p-5 border-t border-slate-200 bg-white grid grid-cols-1 md:grid-cols-2 gap-8 text-xs font-semibold text-slate-600">
+                        <div className={`p-5 border-t border-slate-200 bg-white grid ${generatingPdf ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2'} gap-8 text-xs font-semibold text-slate-600`}>
                           
                           {/* Info Column */}
                           <div>
@@ -1277,18 +1458,18 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
                   {/* CGM Sensor Active Wear details bar */}
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 shrink-0">
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 text-center sm:text-left">
+                    <div className={`grid ${generatingPdf ? 'grid-cols-3' : 'grid-cols-1 sm:grid-cols-3'} gap-6 text-center sm:text-left`}>
                       <div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Sensor Active Wear</span>
                         <div className="mt-1 text-2xl font-extrabold text-slate-800">{wearPercentage}%</div>
                         <div className="text-[10px] text-slate-500 mt-0.5">Goal is &gt; 70% active wear</div>
                       </div>
-                      <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
+                      <div className={`border-t border-slate-200 pt-6 ${generatingPdf ? 'border-t-0 border-l pl-6 pt-0' : 'sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0'}`}>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total CGM Readings</span>
                         <div className="mt-1 text-2xl font-extrabold text-slate-800">{displayEntries.length}</div>
                         <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Readings over {dateRangeDays} days</div>
                       </div>
-                      <div className="border-t border-slate-200 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
+                      <div className={`border-t border-slate-200 pt-6 ${generatingPdf ? 'border-t-0 border-l pl-6 pt-0' : 'sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0'}`}>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Average Readings/Day</span>
                         <div className="mt-1 text-2xl font-extrabold text-slate-800">{avgReadingsPerDay}</div>
                         <div className="text-[10px] text-slate-500 mt-0.5 font-bold">Target is 288 readings/day</div>
@@ -1301,7 +1482,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
               {/* PATTERNS TAB */}
               {activeTab === 'patterns' && (
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-left">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm text-left pdf-card">
                   <h3 className="text-sm font-extrabold text-slate-400 uppercase tracking-wider mb-4">Patterns</h3>
                   <h2 className="text-md font-black text-slate-800 mb-6">
                     We found no patterns during this date range.<br />
@@ -1327,85 +1508,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
               {/* COMPARE TAB CONTENT */}
               {activeTab === 'compare' && (() => {
-                // Prepare date ranges
-                const toA = new Date();
-                toA.setHours(23, 59, 59, 999);
-                const fromA = new Date();
-                fromA.setDate(toA.getDate() - dateRangeDays + 1);
-                fromA.setHours(0, 0, 0, 0);
-
-                const toB = new Date(fromA);
-                toB.setDate(fromA.getDate() - 1);
-                toB.setHours(23, 59, 59, 999);
-                const fromB = new Date(toB);
-                fromB.setDate(toB.getDate() - dateRangeDays + 1);
-                fromB.setHours(0, 0, 0, 0);
-
-                const formatDate = (d: Date) => d.toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                });
-
-                const labelA = `${formatDate(fromA)} - ${formatDate(toA)}`;
-                const labelB = `${formatDate(fromB)} - ${formatDate(toB)}`;
-
-                // Filter entries for Range A and B
-                let rawEntriesA = entries.filter(e => e.date >= fromA.getTime() && e.date <= toA.getTime());
-                let rawEntriesB = entries.filter(e => e.date >= fromB.getTime() && e.date <= toB.getTime());
-
-                // Apply weekday filters
-                rawEntriesA = rawEntriesA.filter(e => compareDays.includes(new Date(e.date).getDay()));
-                rawEntriesB = rawEntriesB.filter(e => compareDays.includes(new Date(e.date).getDay()));
-
-                // Apply time of day filters
-                if (compareTimeOfDay === 'daytime') {
-                  const filterDaytime = (e: NightscoutEntry) => {
-                    const hr = new Date(e.date).getHours();
-                    return hr >= 7 && hr < 22;
-                  };
-                  rawEntriesA = rawEntriesA.filter(filterDaytime);
-                  rawEntriesB = rawEntriesB.filter(filterDaytime);
-                } else if (compareTimeOfDay === 'nighttime') {
-                  const filterNighttime = (e: NightscoutEntry) => {
-                    const hr = new Date(e.date).getHours();
-                    return hr < 7 || hr >= 22;
-                  };
-                  rawEntriesA = rawEntriesA.filter(filterNighttime);
-                  rawEntriesB = rawEntriesB.filter(filterNighttime);
-                }
-
-                // Apply event filters
-                if (compareEvent !== 'none') {
-                  const getDaysWithEvent = (entriesList: NightscoutEntry[]) => {
-                    const setOfDays = new Set<string>();
-                    entriesList.forEach(e => {
-                      const dStr = new Date(e.date).toDateString();
-                      if (compareEvent === 'lows' && e.sgv < 70) {
-                        setOfDays.add(dStr);
-                      } else if (compareEvent === 'highs' && e.sgv > 180) {
-                        setOfDays.add(dStr);
-                      }
-                    });
-                    return setOfDays;
-                  };
-
-                  const daysA = getDaysWithEvent(rawEntriesA);
-                  const daysB = getDaysWithEvent(rawEntriesB);
-
-                  rawEntriesA = rawEntriesA.filter(e => daysA.has(new Date(e.date).toDateString()));
-                  rawEntriesB = rawEntriesB.filter(e => daysB.has(new Date(e.date).toDateString()));
-                }
-
-                const metricsA = calculateGlucoseMetrics(rawEntriesA, units);
-                const metricsB = calculateGlucoseMetrics(rawEntriesB, units);
-
-                const activeDaysA = getActiveDays(rawEntriesA, dateRangeDays);
-                const activeDaysB = getActiveDays(rawEntriesB, dateRangeDays);
-
-                const wearPctA = Math.min(100, Math.round(((rawEntriesA.length / Math.max(activeDaysA, 1)) / 288) * 100));
-                const wearPctB = Math.min(100, Math.round(((rawEntriesB.length / Math.max(activeDaysB, 1)) / 288) * 100));
+                const {
+                  toA, fromA, toB, fromB,
+                  labelA, labelB,
+                  rawEntriesA, rawEntriesB,
+                  metricsA, metricsB,
+                  wearPctA, wearPctB,
+                  percentilesA, percentilesB
+                } = compareData;
 
                 const getWeeksArrayForRange = (endLimit: Date) => {
                   const weeks = [];
@@ -1634,362 +1744,338 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                           </span>
                         )}
                       </div>
+                    )}                    {/* Reference and Comparison Labels Row */}
+                    <div className={`grid ${generatingPdf ? 'grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'} gap-6 pdf-card`}>
+                      <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 shadow-inner text-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Reference Period</span>
+                        <span className="text-sm font-extrabold text-slate-800">{labelB}</span>
+                      </div>
+                      <div className="bg-[#72B100]/5 border border-[#72B100]/20 rounded-xl px-4 py-3 shadow-inner text-center">
+                        <span className="text-[10px] font-black text-[#72B100] uppercase tracking-wider block mb-0.5">Comparison Period</span>
+                        <span className="text-sm font-extrabold text-[#72B100]">{labelA}</span>
+                      </div>
+                    </div>
+
+                    {/* Trends sub-tab content */}
+                    {compareSubTab === 'trends' && (
+                      <div className="space-y-6">
+                        {/* AGP Chart Row */}
+                        <div className={`grid ${generatingPdf ? 'grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'} gap-6 pdf-card`}>
+                          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4 text-center">Modal Day (AGP Profile)</h4>
+                            <AGPChart percentiles={percentilesB} units={units} />
+                          </div>
+                          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4 text-center">Modal Day (AGP Profile)</h4>
+                            <AGPChart percentiles={percentilesA} units={units} />
+                          </div>
+                        </div>
+
+                        {/* Summary Stats Row */}
+                        <div className={`grid ${generatingPdf ? 'grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'} gap-6 pdf-card`}>
+                          {/* Left summary */}
+                          <div className={`grid ${generatingPdf ? 'grid-cols-12' : 'grid-cols-1 md:grid-cols-12'} gap-6`}>
+                            {/* TIR */}
+                            <div className={`${generatingPdf ? 'col-span-7' : 'md:col-span-7'} border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between`}>
+                              <div>
+                                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
+                                <div className="flex gap-4 items-center">
+                                  <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
+                                    {renderBarSegment(metricsB.timeInVeryHigh, rawEntriesB.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
+                                    {renderBarSegment(metricsB.timeInHigh, rawEntriesB.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
+                                    {renderBarSegment(metricsB.timeInTarget, rawEntriesB.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
+                                    {renderBarSegment(metricsB.timeInLow, rawEntriesB.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
+                                    {renderBarSegment(metricsB.timeInVeryLow, rawEntriesB.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
+                                  </div>
+                                  <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#F29100]" />
+                                        <span>Very High</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInVeryHigh, rawEntriesB.filter(e => e.sgv > 250).length)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#FCD116]" />
+                                        <span>High</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInHigh, rawEntriesB.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between py-0.5 bg-[#72B100]/5 px-1.5 rounded">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#72B100]" />
+                                        <span className="text-[#527e00]">In Target</span>
+                                      </div>
+                                      <span className="text-[#72B100] font-black">{metricsB.timeInTarget}%</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#F04124]" />
+                                        <span>Low</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInLow, rawEntriesB.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#9C0006]" />
+                                        <span>Very Low</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInVeryLow, rawEntriesB.filter(e => e.sgv < 54).length)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            {/* Stats table */}
+                            <div className={`${generatingPdf ? 'col-span-5' : 'md:col-span-5'} border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between text-xs font-bold text-slate-500`}>
+                              <div className="space-y-2.5">
+                                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Metrics</h5>
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                  <span>Average</span>
+                                  <span className="text-slate-800 font-black">
+                                    {metricsB.readingCount > 0 
+                                      ? `${isMgdl ? metricsB.mean.toFixed(0) : metricsB.mean.toFixed(1)} ${units}`
+                                      : '-'
+                                    }
+                                  </span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                  <span>GMI</span>
+                                  <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${metricsB.gmi}%` : '-'}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                  <span>Variability (CV)</span>
+                                  <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${metricsB.cv}%` : '-'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>CGM Active</span>
+                                  <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${wearPctB}%` : '-'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right summary */}
+                          <div className={`grid ${generatingPdf ? 'grid-cols-12' : 'grid-cols-1 md:grid-cols-12'} gap-6`}>
+                            {/* TIR */}
+                            <div className={`${generatingPdf ? 'col-span-7' : 'md:col-span-7'} border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between`}>
+                              <div>
+                                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
+                                <div className="flex gap-4 items-center">
+                                  <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
+                                    {renderBarSegment(metricsA.timeInVeryHigh, rawEntriesA.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
+                                    {renderBarSegment(metricsA.timeInHigh, rawEntriesA.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
+                                    {renderBarSegment(metricsA.timeInTarget, rawEntriesA.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
+                                    {renderBarSegment(metricsA.timeInLow, rawEntriesA.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
+                                    {renderBarSegment(metricsA.timeInVeryLow, rawEntriesA.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
+                                  </div>
+                                  <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#F29100]" />
+                                        <span>Very High</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInVeryHigh, rawEntriesA.filter(e => e.sgv > 250).length)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#FCD116]" />
+                                        <span>High</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInHigh, rawEntriesA.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between py-0.5 bg-[#72B100]/5 px-1.5 rounded">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#72B100]" />
+                                        <span className="text-[#527e00]">In Target</span>
+                                      </div>
+                                      <span className="text-[#72B100] font-black">{metricsA.timeInTarget}%</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#F04124]" />
+                                        <span>Low</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInLow, rawEntriesA.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded bg-[#9C0006]" />
+                                        <span>Very Low</span>
+                                      </div>
+                                      <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInVeryLow, rawEntriesA.filter(e => e.sgv < 54).length)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            {/* Stats table */}
+                            <div className={`${generatingPdf ? 'col-span-5' : 'md:col-span-5'} border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between text-xs font-bold text-slate-500`}>
+                              <div className="space-y-2.5">
+                                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Metrics</h5>
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                  <span>Average</span>
+                                  <span className="text-slate-800 font-black">
+                                    {metricsA.readingCount > 0 
+                                      ? `${isMgdl ? metricsA.mean.toFixed(0) : metricsA.mean.toFixed(1)} ${units}`
+                                      : '-'
+                                    }
+                                  </span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                  <span>GMI</span>
+                                  <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${metricsA.gmi}%` : '-'}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                                  <span>Variability (CV)</span>
+                                  <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${metricsA.cv}%` : '-'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>CGM Active</span>
+                                  <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${wearPctA}%` : '-'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
 
-                    {/* Side-by-Side Comparison Columns */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                      
-                      {/* Left Column - Range B (Past / Reference Range) */}
-                      <div className="space-y-6">
-                        <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 shadow-inner text-center">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Reference Period</span>
-                          <span className="text-sm font-extrabold text-slate-800">{labelB}</span>
-                        </div>
+                    {/* Overlay Sub-Tab Content */}
+                    {compareSubTab === 'overlay' && (
+                      <div className="space-y-4">
+                        {getWeeksArrayForRange(toB).map((weekB, idx) => {
+                          const weekA = getWeeksArrayForRange(toA)[idx];
+                          const weekEntriesB = rawEntriesB.filter(
+                            e => e.date >= weekB.start.getTime() && e.date <= weekB.end.getTime()
+                          );
+                          const weekEntriesA = rawEntriesA.filter(
+                            e => e.date >= weekA.start.getTime() && e.date <= weekA.end.getTime()
+                          );
 
-                        {/* Trends sub-tab: AGP + Summary */}
-                        {compareSubTab === 'trends' && (
-                          <div className="space-y-6">
-                            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4 text-center">Modal Day (AGP Profile)</h4>
-                              <AGPChart percentiles={calculateAGPPercentiles(rawEntriesB, units)} units={units} />
-                            </div>
+                          const weekLabelB = `Week of ${weekB.start.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric'
+                          })} - ${weekB.end.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}`;
 
-                            {/* Summary stats block */}
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                              {/* TIR */}
-                              <div className="md:col-span-7 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between">
-                                <div>
-                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
-                                  <div className="flex gap-4 items-center">
-                                    <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
-                                      {renderBarSegment(metricsB.timeInVeryHigh, rawEntriesB.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
-                                      {renderBarSegment(metricsB.timeInHigh, rawEntriesB.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
-                                      {renderBarSegment(metricsB.timeInTarget, rawEntriesB.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
-                                      {renderBarSegment(metricsB.timeInLow, rawEntriesB.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
-                                      {renderBarSegment(metricsB.timeInVeryLow, rawEntriesB.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
-                                    </div>
-                                    <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#F29100]" />
-                                          <span>Very High</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInVeryHigh, rawEntriesB.filter(e => e.sgv > 250).length)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#FCD116]" />
-                                          <span>High</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInHigh, rawEntriesB.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between py-0.5 bg-[#72B100]/5 px-1.5 rounded">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#72B100]" />
-                                          <span className="text-[#527e00]">In Target</span>
-                                        </div>
-                                        <span className="text-[#72B100] font-black">{metricsB.timeInTarget}%</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#F04124]" />
-                                          <span>Low</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInLow, rawEntriesB.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#9C0006]" />
-                                          <span>Very Low</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsB.timeInVeryLow, rawEntriesB.filter(e => e.sgv < 54).length)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
+                          const weekLabelA = `Week of ${weekA.start.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric'
+                          })} - ${weekA.end.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}`;
+
+                          return (
+                            <div key={idx} className={`grid ${generatingPdf ? 'grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'} gap-6 pdf-card`}>
+                              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <WeeklyOverlayChart
+                                  entries={weekEntriesB}
+                                  units={units}
+                                  selectedDays={compareDays}
+                                  eventFilter={compareEvent === 'highs' ? 'highs' : compareEvent === 'lows' ? 'lows' : 'all'}
+                                  weekLabel={weekLabelB}
+                                />
                               </div>
-
-                              {/* Stats table */}
-                              <div className="md:col-span-5 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between text-xs font-bold text-slate-500">
-                                <div className="space-y-2.5">
-                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Metrics</h5>
-                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                                    <span>Average</span>
-                                    <span className="text-slate-800 font-black">
-                                      {metricsB.readingCount > 0 
-                                        ? `${isMgdl ? metricsB.mean.toFixed(0) : metricsB.mean.toFixed(1)} ${units}`
-                                        : '-'
-                                      }
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                                    <span>GMI</span>
-                                    <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${metricsB.gmi}%` : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                                    <span>Variability (CV)</span>
-                                    <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${metricsB.cv}%` : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>CGM Active</span>
-                                    <span className="text-slate-800 font-black">{metricsB.readingCount > 0 ? `${wearPctB}%` : '-'}</span>
-                                  </div>
-                                </div>
+                              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <WeeklyOverlayChart
+                                  entries={weekEntriesA}
+                                  units={units}
+                                  selectedDays={compareDays}
+                                  eventFilter={compareEvent === 'highs' ? 'highs' : compareEvent === 'lows' ? 'lows' : 'all'}
+                                  weekLabel={weekLabelA}
+                                />
                               </div>
                             </div>
-                          </div>
-                        )}
-
-                        {/* Overlay sub-tab */}
-                        {compareSubTab === 'overlay' && (
-                          <div className="space-y-4">
-                            {getWeeksArrayForRange(toB).map((week, idx) => {
-                              const weekEntries = rawEntriesB.filter(
-                                e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
-                              );
-                              const weekLabel = `Week of ${week.start.toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric'
-                              })} - ${week.end.toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}`;
-
-                              return (
-                                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                  <WeeklyOverlayChart
-                                    entries={weekEntries}
-                                    units={units}
-                                    selectedDays={compareDays}
-                                    eventFilter={compareEvent === 'highs' ? 'highs' : compareEvent === 'lows' ? 'lows' : 'all'}
-                                    weekLabel={weekLabel}
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* Daily sub-tab */}
-                        {compareSubTab === 'daily' && (
-                          <div className="space-y-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                            {getDaysArrayForRange(fromB, dateRangeDays).reverse().map((dayDate, idx) => {
-                              const start = dayDate.getTime();
-                              const end = start + 24 * 60 * 60 * 1000 - 1;
-                              const dayEntries = rawEntriesB.filter(e => e.date >= start && e.date <= end);
-                              const dayTreatments = treatments.filter(t => {
-                                const date = t.date || new Date(t.created_at).getTime();
-                                return date >= start && date <= end;
-                              });
-
-                              const dateString = dayDate.toLocaleDateString(undefined, {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric'
-                              });
-
-                              return (
-                                <div key={idx} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-4">
-                                  <div className="w-28 shrink-0 text-left">
-                                    <span className="text-xs font-black text-slate-800">{dateString}</span>
-                                    <span className="text-[10px] text-slate-400 block mt-0.5">{dayEntries.length} logs</span>
-                                  </div>
-                                  <div className="flex-1 min-w-0 h-14 flex items-center">
-                                    {dayEntries.length > 0 ? (
-                                      <DailyMiniChart
-                                        entries={dayEntries}
-                                        treatments={dayTreatments}
-                                        units={units}
-                                        dayStart={start}
-                                      />
-                                    ) : (
-                                      <span className="text-[10px] italic text-slate-300">No logs</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
+                    )}
 
-                      {/* Right Column - Range A (Recent / Comparison Target Range) */}
-                      <div className="space-y-6">
-                        <div className="bg-[#72B100]/5 border border-[#72B100]/20 rounded-xl px-4 py-3 shadow-inner text-center">
-                          <span className="text-[10px] font-black text-[#72B100] uppercase tracking-wider block mb-0.5">Comparison Period</span>
-                          <span className="text-sm font-extrabold text-[#72B100]">{labelA}</span>
-                        </div>
+                    {/* Daily Sub-Tab Content */}
+                    {compareSubTab === 'daily' && (
+                      <div className="space-y-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                        {getDaysArrayForRange(fromB, dateRangeDays).reverse().map((dayDateB, idx) => {
+                          const daysA = getDaysArrayForRange(fromA, dateRangeDays).reverse();
+                          const dayDateA = daysA[idx];
 
-                        {/* Trends sub-tab: AGP + Summary */}
-                        {compareSubTab === 'trends' && (
-                          <div className="space-y-6">
-                            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4 text-center">Modal Day (AGP Profile)</h4>
-                              <AGPChart percentiles={calculateAGPPercentiles(rawEntriesA, units)} units={units} />
-                            </div>
+                          const startB = dayDateB.getTime();
+                          const endB = startB + 24 * 60 * 60 * 1000 - 1;
+                          const dayEntriesB = rawEntriesB.filter(e => e.date >= startB && e.date <= endB);
+                          const dayTreatmentsB = treatments.filter(t => {
+                            const date = t.date || new Date(t.created_at).getTime();
+                            return date >= startB && date <= endB;
+                          });
 
-                            {/* Summary stats block */}
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                              {/* TIR */}
-                              <div className="md:col-span-7 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between">
-                                <div>
-                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Time in Ranges</h5>
-                                  <div className="flex gap-4 items-center">
-                                    <div className="flex h-32 w-8 flex-col overflow-hidden rounded-[3px] bg-slate-100 border border-slate-200/50 shadow-inner shrink-0">
-                                      {renderBarSegment(metricsA.timeInVeryHigh, rawEntriesA.filter(e => e.sgv > 250).length, "bg-[#F29100]")}
-                                      {renderBarSegment(metricsA.timeInHigh, rawEntriesA.filter(e => e.sgv > 180 && e.sgv <= 250).length, "bg-[#FCD116]")}
-                                      {renderBarSegment(metricsA.timeInTarget, rawEntriesA.filter(e => e.sgv >= 70 && e.sgv <= 180).length, "bg-[#72B100]")}
-                                      {renderBarSegment(metricsA.timeInLow, rawEntriesA.filter(e => e.sgv >= 54 && e.sgv < 70).length, "bg-[#F04124]")}
-                                      {renderBarSegment(metricsA.timeInVeryLow, rawEntriesA.filter(e => e.sgv < 54).length, "bg-[#9C0006]")}
-                                    </div>
-                                    <div className="flex-1 flex flex-col justify-between py-0.5 text-[10px] font-bold text-slate-500 space-y-1">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#F29100]" />
-                                          <span>Very High</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInVeryHigh, rawEntriesA.filter(e => e.sgv > 250).length)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#FCD116]" />
-                                          <span>High</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInHigh, rawEntriesA.filter(e => e.sgv > 180 && e.sgv <= 250).length)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between py-0.5 bg-[#72B100]/5 px-1.5 rounded">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#72B100]" />
-                                          <span className="text-[#527e00]">In Target</span>
-                                        </div>
-                                        <span className="text-[#72B100] font-black">{metricsA.timeInTarget}%</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#F04124]" />
-                                          <span>Low</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInLow, rawEntriesA.filter(e => e.sgv >= 54 && e.sgv < 70).length)}</span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded bg-[#9C0006]" />
-                                          <span>Very Low</span>
-                                        </div>
-                                        <span className="text-slate-800 font-black">{formatPctLabel(metricsA.timeInVeryLow, rawEntriesA.filter(e => e.sgv < 54).length)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
+                          const startA = dayDateA.getTime();
+                          const endA = startA + 24 * 60 * 60 * 1000 - 1;
+                          const dayEntriesA = rawEntriesA.filter(e => e.date >= startA && e.date <= endA);
+                          const dayTreatmentsA = treatments.filter(t => {
+                            const date = t.date || new Date(t.created_at).getTime();
+                            return date >= startA && date <= endA;
+                          });
+
+                          const dateStringB = dayDateB.toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          });
+
+                          const dateStringA = dayDateA.toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          });
+
+                          return (
+                            <div key={idx} className={`grid ${generatingPdf ? 'grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'} gap-6 pdf-card`}>
+                              <div className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-4">
+                                <div className="w-28 shrink-0 text-left">
+                                  <span className="text-xs font-black text-slate-800">{dateStringB}</span>
+                                  <span className="text-[10px] text-slate-400 block mt-0.5">{dayEntriesB.length} logs</span>
+                                </div>
+                                <div className="flex-1 min-w-0 h-14 flex items-center">
+                                  {dayEntriesB.length > 0 ? (
+                                    <DailyMiniChart
+                                      entries={dayEntriesB}
+                                      treatments={dayTreatmentsB}
+                                      units={units}
+                                      dayStart={startB}
+                                    />
+                                  ) : (
+                                    <span className="text-[10px] italic text-slate-300">No logs</span>
+                                  )}
                                 </div>
                               </div>
-
-                              {/* Stats table */}
-                              <div className="md:col-span-5 border border-slate-200 rounded-xl p-5 bg-white shadow-sm flex flex-col justify-between text-xs font-bold text-slate-500">
-                                <div className="space-y-2.5">
-                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Metrics</h5>
-                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                                    <span>Average</span>
-                                    <span className="text-slate-800 font-black">
-                                      {metricsA.readingCount > 0 
-                                        ? `${isMgdl ? metricsA.mean.toFixed(0) : metricsA.mean.toFixed(1)} ${units}`
-                                        : '-'
-                                      }
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                                    <span>GMI</span>
-                                    <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${metricsA.gmi}%` : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between border-b border-slate-100 pb-1.5">
-                                    <span>Variability (CV)</span>
-                                    <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${metricsA.cv}%` : '-'}</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>CGM Active</span>
-                                    <span className="text-slate-800 font-black">{metricsA.readingCount > 0 ? `${wearPctA}%` : '-'}</span>
-                                  </div>
+                              <div className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-4">
+                                <div className="w-28 shrink-0 text-left">
+                                  <span className="text-xs font-black text-slate-800">{dateStringA}</span>
+                                  <span className="text-[10px] text-slate-400 block mt-0.5">{dayEntriesA.length} logs</span>
+                                </div>
+                                <div className="flex-1 min-w-0 h-14 flex items-center">
+                                  {dayEntriesA.length > 0 ? (
+                                    <DailyMiniChart
+                                      entries={dayEntriesA}
+                                      treatments={dayTreatmentsA}
+                                      units={units}
+                                      dayStart={startA}
+                                    />
+                                  ) : (
+                                    <span className="text-[10px] italic text-slate-300">No logs</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-
-                        {/* Overlay sub-tab */}
-                        {compareSubTab === 'overlay' && (
-                          <div className="space-y-4">
-                            {getWeeksArrayForRange(toA).map((week, idx) => {
-                              const weekEntries = rawEntriesA.filter(
-                                e => e.date >= week.start.getTime() && e.date <= week.end.getTime()
-                              );
-                              const weekLabel = `Week of ${week.start.toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric'
-                              })} - ${week.end.toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}`;
-
-                              return (
-                                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                  <WeeklyOverlayChart
-                                    entries={weekEntries}
-                                    units={units}
-                                    selectedDays={compareDays}
-                                    eventFilter={compareEvent === 'highs' ? 'highs' : compareEvent === 'lows' ? 'lows' : 'all'}
-                                    weekLabel={weekLabel}
-                                  />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {/* Daily sub-tab */}
-                        {compareSubTab === 'daily' && (
-                          <div className="space-y-4 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                            {getDaysArrayForRange(fromA, dateRangeDays).reverse().map((dayDate, idx) => {
-                              const start = dayDate.getTime();
-                              const end = start + 24 * 60 * 60 * 1000 - 1;
-                              const dayEntries = rawEntriesA.filter(e => e.date >= start && e.date <= end);
-                              const dayTreatments = treatments.filter(t => {
-                                const date = t.date || new Date(t.created_at).getTime();
-                                return date >= start && date <= end;
-                              });
-
-                              const dateString = dayDate.toLocaleDateString(undefined, {
-                                weekday: 'short',
-                                month: 'short',
-                                day: 'numeric'
-                              });
-
-                              return (
-                                <div key={idx} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-4">
-                                  <div className="w-28 shrink-0 text-left">
-                                    <span className="text-xs font-black text-slate-800">{dateString}</span>
-                                    <span className="text-[10px] text-slate-400 block mt-0.5">{dayEntries.length} logs</span>
-                                  </div>
-                                  <div className="flex-1 min-w-0 h-14 flex items-center">
-                                    {dayEntries.length > 0 ? (
-                                      <DailyMiniChart
-                                        entries={dayEntries}
-                                        treatments={dayTreatments}
-                                        units={units}
-                                        dayStart={start}
-                                      />
-                                    ) : (
-                                      <span className="text-[10px] italic text-slate-300">No logs</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                          );
+                        })}
                       </div>
-
-                    </div>
+                    )}
                   </div>
                 );
               })()}
@@ -2100,7 +2186,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                       })}`;
 
                       return (
-                        <div key={idx} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div key={idx} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm pdf-card">
                           <WeeklyOverlayChart
                             entries={weekEntries}
                             units={units}
@@ -2134,10 +2220,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
 
                   {/* Summary Block: Time in Ranges and Glucose Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
+                  <div className={`grid ${generatingPdf ? 'grid-cols-12' : 'grid-cols-1 md:grid-cols-12'} gap-8 items-stretch pdf-card`}>
                     
                     {/* Left Box: Time in Ranges */}
-                    <div className="md:col-span-7 border border-slate-200 rounded-xl p-5 flex flex-col justify-between bg-slate-50/20">
+                    <div className={`${generatingPdf ? 'col-span-7' : 'md:col-span-7'} border border-slate-200 rounded-xl p-5 flex flex-col justify-between bg-slate-50/20`}>
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Time in Ranges</h4>
@@ -2225,7 +2311,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
 
                     {/* Right Box: Glucose Metrics */}
-                    <div className="md:col-span-5 border border-slate-200 rounded-xl p-5 flex flex-col justify-between bg-slate-50/20">
+                    <div className={`${generatingPdf ? 'col-span-5' : 'md:col-span-5'} border border-slate-200 rounded-xl p-5 flex flex-col justify-between bg-slate-50/20`}>
                       <div>
                         <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-4">Glucose Metrics</h4>
                         <table className="w-full text-xs font-bold text-slate-600">
@@ -2261,12 +2347,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   </div>
 
                   {/* AGP ECharts Chart Wrapper */}
-                  <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/5">
+                  <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/5 pdf-card">
                     <AGPChart percentiles={calculateAGPPercentiles(displayEntries, units)} units={units} />
                   </div>
 
                   {/* Daily Glucose Profile — Dexcom-style table layout */}
-                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white pdf-card">
                     {/* Section header */}
                     <div className="px-6 pt-5 pb-3 border-b border-slate-100">
                       <h3 className="text-sm font-extrabold text-slate-800">Daily Glucose Profile</h3>
@@ -2403,8 +2489,8 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                       });
 
                       return (
-                        <div key={idx} className="flex flex-col md:flex-row items-stretch py-5 gap-6">
-                          <div className="w-full md:w-60 flex-shrink-0 flex flex-col justify-center text-left">
+                        <div key={idx} className={`flex ${generatingPdf ? 'flex-row' : 'flex-col md:flex-row'} items-stretch py-5 gap-6 pdf-card`}>
+                          <div className={`${generatingPdf ? 'w-60' : 'w-full md:w-60'} flex-shrink-0 flex flex-col justify-center text-left`}>
                             <h3 className="text-sm font-extrabold text-slate-900">{dateString}</h3>
                             {dayEntries.length > 0 ? (
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-500">
@@ -2442,7 +2528,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
 
               {/* STATISTICS TAB */}
               {activeTab === 'stats' && (
-                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left">
+                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-left pdf-card">
                   
                   {/* Sub-tab Selectors */}
                   <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 gap-4">

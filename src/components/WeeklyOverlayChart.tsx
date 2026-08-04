@@ -82,14 +82,30 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
     sdStr = `± ${stdDevConverted.toFixed(isMgdl ? 0 : 1)} ${units}`;
   }
 
+  // 1. Initialize and dispose chart instance on mount/unmount
   useEffect(() => {
     if (!chartRef.current) return;
+    
+    const chart = echarts.init(chartRef.current);
+    chartInstance.current = chart;
+    
+    const handleResize = () => {
+      chart.resize();
+    };
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
 
-    if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current);
-    }
-
+  // 2. Update option whenever data/options change
+  useEffect(() => {
     const chart = chartInstance.current;
+    if (!chart) return;
+
     const targetMin = isMgdl ? 70 : 3.9;
     const targetMax = isMgdl ? 180 : 10.0;
     const conversion = (val: number) => isMgdl ? val : val / 18.018;
@@ -125,35 +141,32 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
       const dateObj = new Date(dayEntries[0].date);
       const dayOfWeek = dateObj.getDay();
 
-      // 1. Filter by selected days
+      // Check if this day is selected in filters
       if (!selectedDays.includes(dayOfWeek)) return;
 
-      // 2. Filter by events (Lows: sgv < 70, Highs: sgv > 180)
-      const hasLow = dayEntries.some(e => e.sgv < 70);
-      const hasHigh = dayEntries.some(e => e.sgv > 180);
+      // Filter entries by active event filter (highs, lows, or all)
+      let matchEvent = true;
+      if (eventFilter === 'lows') {
+        matchEvent = dayEntries.some(e => e.sgv < 70);
+      } else if (eventFilter === 'highs') {
+        matchEvent = dayEntries.some(e => e.sgv > 180);
+      }
 
-      const matchesEvent = 
-        eventFilter === 'all' ||
-        (eventFilter === 'lows' && hasLow) ||
-        (eventFilter === 'highs' && hasHigh);
+      if (!matchEvent) return;
 
-      if (!matchesEvent) return;
+      // Map day logs to 24h data points (representing the time of day)
+      const dayPoints = dayEntries.map(e => {
+        const timeDate = new Date(e.date);
+        const mins = timeDate.getHours() * 60 + timeDate.getMinutes();
+        const value = conversion(e.sgv);
+        allSgvs.push(value);
+        return [mins, value];
+      }).sort((a, b) => a[0] - b[0]);
 
-      // Sort points chronologically by hour decimal
-      const dayPoints = dayEntries
-        .map(e => {
-          const d = new Date(e.date);
-          const hourVal = d.getHours() + d.getMinutes() / 60;
-          const convVal = conversion(e.sgv);
-          allSgvs.push(convVal);
-          return [hourVal, convVal];
-        })
-        .sort((a, b) => a[0] - b[0]);
-
-      const formattedLabel = dateObj.toLocaleDateString(undefined, { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric' 
+      const formattedLabel = dateObj.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
       });
 
       seriesList.push({
@@ -175,8 +188,6 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
         }
       });
     });
-
-
 
     // Target range area config
     const targetAreaSeries: echarts.SeriesOption = {
@@ -208,59 +219,60 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
     };
 
     const option: echarts.EChartsOption = {
-      title: {
-        show: false
-      },
+      animation: false,
+      title: { show: false },
       tooltip: {
         trigger: 'axis',
         axisPointer: {
           type: 'line',
           lineStyle: {
             color: '#94a3b8',
+            width: 1,
             type: 'dashed'
           }
         },
         formatter: (params: any) => {
           if (!params || params.length === 0) return '';
-          const timeVal = params[0].value[0];
-          const hr = Math.floor(timeVal);
-          const mn = Math.round((timeVal - hr) * 60);
-          const timeStr = `${hr.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')}`;
           
-          let html = `
-            <div style="font-family: sans-serif; font-size: 11px; padding: 4px;">
-              <div style="font-weight: bold; margin-bottom: 6px; color: #1e293b;">Time: ${timeStr}</div>
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-          `;
-          
+          const formatTime = (mins: number) => {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          };
+
+          const timeMins = params[0].value[0];
+          let output = `<div style="font-family: sans-serif; font-size: 11px; padding: 4px;">`;
+          output += `<div style="font-weight: bold; margin-bottom: 6px; color: #1e293b;">Time: ${formatTime(timeMins)}</div>`;
+          output += `<div style="display: flex; flex-direction: column; gap: 4px;">`;
+
           params.forEach((p: any) => {
-            if (p.seriesName === '') return;
-            html += `
-              <div style="display: flex; justify-content: space-between; gap: 16px;">
-                <span style="display: flex; items-center gap: 6px;">
-                  <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${p.color}; margin-top: 3px;"></span>
-                  <span style="color: #475569;">${p.seriesName}:</span>
-                </span>
-                <span style="font-weight: bold; color: #1e293b;">${p.value[1].toFixed(isMgdl ? 0 : 1)} ${units}</span>
-              </div>
-            `;
+            if (p.seriesName) {
+              const val = p.value[1];
+              output += `
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: ${p.color || '#64748b'};">${p.seriesName}:</span>
+                  <span style="font-weight: bold; color: #1e293b;">${val.toFixed(isMgdl ? 0 : 1)} ${units}</span>
+                </div>
+              `;
+            }
           });
-          
-          html += `</div></div>`;
-          return html;
+
+          output += `</div></div>`;
+          return output;
         }
       },
       grid: {
         left: '4%',
         right: '4%',
-        bottom: '10%',
-        top: '8%',
+        bottom: '8%',
+        top: '6%',
         containLabel: true
       },
       xAxis: {
         type: 'value',
         min: 0,
-        max: 24,
+        max: 1440,
+        interval: 120, // every 2 hours
         axisLine: {
           lineStyle: {
             color: '#cbd5e1'
@@ -270,12 +282,8 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
           color: '#64748b',
           fontSize: 9,
           formatter: (value: number) => {
-            if (value === 0) return '12 AM';
-            if (value === 6) return '6 AM';
-            if (value === 12) return '12 PM';
-            if (value === 18) return '6 PM';
-            if (value === 24) return '12 AM';
-            return '';
+            const hours = value / 60;
+            return `${hours.toString().padStart(2, '0')}:00`;
           }
         },
         splitLine: {
@@ -324,17 +332,9 @@ export const WeeklyOverlayChart: React.FC<WeeklyOverlayChartProps> = ({
       series: [targetAreaSeries, ...seriesList]
     };
 
-    chart.setOption(option, { notMerge: true });
-
-    const handleResize = () => {
-      chart.resize();
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    chart.setOption(option, { notMerge: true, lazyUpdate: false });
   }, [entries, units, selectedDays, eventFilter, weekLabel, isMgdl]);
+
 
   return (
     <div className="w-full text-left">

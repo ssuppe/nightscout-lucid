@@ -15,14 +15,29 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
+  // 1. Initialize and dispose chart instance on mount/unmount
   useEffect(() => {
     if (!chartRef.current) return;
+    
+    const chart = echarts.init(chartRef.current);
+    chartInstance.current = chart;
+    
+    const handleResize = () => {
+      chart.resize();
+    };
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.dispose();
+      chartInstance.current = null;
+    };
+  }, []);
 
-    if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current);
-    }
-
+  // 2. Update option whenever data/options change
+  useEffect(() => {
     const chart = chartInstance.current;
+    if (!chart) return;
 
     const timeLabels = hourlyStats.map(d => d.timeLabel);
     
@@ -45,42 +60,32 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
     const yMin = Math.max(isMgdl ? 40 : 2.0, Math.floor(minVal - cushionMin));
     const yMax = Math.ceil(maxVal + cushionMax);
 
-
-
     const option: echarts.EChartsOption = {
+      animation: false,
       // Title and Legend are rendered in parent component via HTML
       tooltip: {
         trigger: 'axis',
-        axisPointer: {
-          type: 'line',
-          lineStyle: {
-            color: '#94a3b8',
-            width: 1,
-            type: 'dashed'
-          }
-        },
         formatter: (params: any) => {
-          const time = params[0].axisValue;
-          const stat = hourlyStats.find(s => s.timeLabel === time);
+          const idx = params[0].dataIndex;
+          const stat = hourlyStats[idx];
           if (!stat) return '';
-
-          const precision = isMgdl ? 0 : 1;
-          const unitStr = units;
-
-          const p15Val = stat.p15.toFixed(precision);
-          const p75Val = stat.p75.toFixed(precision);
-          const meanVal = stat.mean.toFixed(precision);
-
+          const formatVal = (val: number) => isMgdl ? val.toFixed(0) : val.toFixed(1);
           return `
-            <div style="font-family: sans-serif; font-size: 11px; padding: 4px; line-height: 1.6; text-align: left;">
-              <div style="font-weight: 800; color: #1e293b; border-b: 1px solid #e2e8f0; padding-bottom: 3px; mb-4">${time}</div>
-              <div style="display: flex; justify-content: space-between; gap: 16px;">
-                <span style="color: #64748b; font-weight: 600;">Average Glucose:</span>
-                <span style="font-weight: 800; color: #1d4ed8;">${meanVal} ${unitStr}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; gap: 16px; margin-top: 2px;">
-                <span style="color: #64748b; font-weight: 600;">15th - 75th Range:</span>
-                <span style="font-weight: 800; color: #475569;">${p15Val} - ${p75Val} ${unitStr}</span>
+            <div style="font-family: sans-serif; font-size: 11px; padding: 4px;">
+              <div style="font-weight: bold; margin-bottom: 6px; color: #1e293b;">Time: ${stat.timeLabel}</div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #64748b;">75th Percentile:</span>
+                  <span style="font-weight: bold; color: #1e293b;">${formatVal(stat.p75)} ${units}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #475569; font-weight: bold;">Mean:</span>
+                  <span style="font-weight: bold; color: #475569;">${formatVal(stat.mean)} ${units}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; gap: 16px;">
+                  <span style="color: #64748b;">15th Percentile:</span>
+                  <span style="font-weight: bold; color: #1e293b;">${formatVal(stat.p15)} ${units}</span>
+                </div>
               </div>
             </div>
           `;
@@ -89,26 +94,23 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
       grid: {
         left: '4%',
         right: '4%',
-        top: '6%',
         bottom: '8%',
+        top: '6%',
         containLabel: true
       },
       xAxis: {
         type: 'category',
         data: timeLabels,
+        axisLine: {
+          lineStyle: {
+            color: '#cbd5e1'
+          }
+        },
         axisLabel: {
           color: '#64748b',
           fontSize: 9,
           interval: 8,
           formatter: (value: string) => value
-        },
-        splitLine: {
-          show: true,
-          interval: 8,
-          lineStyle: {
-            color: '#f1f5f9',
-            type: 'dashed'
-          }
         }
       },
       yAxis: {
@@ -117,8 +119,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
         max: yMax,
         axisLabel: {
           color: '#64748b',
-          fontSize: 10,
-          fontWeight: 'bold'
+          fontSize: 9
         },
         splitLine: {
           show: true,
@@ -134,7 +135,7 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
           markArea: {
             silent: true,
             itemStyle: {
-              color: 'rgba(114, 177, 0, 0.03)'
+              color: 'rgba(114, 177, 0, 0.02)'
             },
             data: [
               [
@@ -148,12 +149,12 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
             symbol: 'none',
             lineStyle: {
               color: '#72B100',
-              type: 'solid',
+              type: 'dashed',
               width: 1.5
             },
             label: {
               position: 'end',
-              fontSize: 10,
+              fontSize: 9,
               color: '#72B100',
               fontWeight: 'bold',
               formatter: (params) => `${params.value} ${units}`
@@ -164,58 +165,49 @@ export const HourlyGlucoseChart: React.FC<HourlyGlucoseChartProps> = ({
             ]
           }
         },
-        // 2. Base invisible stacking series
+        // 2. Base p15 (invisible, used to float p75)
         {
           name: 'p15_base',
           type: 'bar',
-          stack: 'HourlyGlucose',
+          stack: 'p15-p75',
           data: baseP15,
           itemStyle: {
-            color: 'none'
+            color: 'rgba(0,0,0,0)',
+            borderColor: 'rgba(0,0,0,0)'
           },
           emphasis: {
             itemStyle: {
-              color: 'none'
+              color: 'rgba(0,0,0,0)',
+              borderColor: 'rgba(0,0,0,0)'
             }
           }
         },
-        // 3. Shaded grey range bar (75th - 15th)
+        // 3. Floating bar 15th-75th range
         {
           name: '15th - 75th Percentile Range',
           type: 'bar',
-          stack: 'HourlyGlucose',
+          stack: 'p15-p75',
           data: diffP75,
-          color: '#cbd5e1', // soft grey
-          barWidth: '70%',
           itemStyle: {
-            borderRadius: [2, 2, 2, 2]
+            color: 'rgba(0, 94, 184, 0.15)'
           }
         },
-        // 4. Mean line overlay
+        // 4. Mean line (overlay)
         {
-          name: 'Average Glucose',
+          name: 'Mean',
           type: 'line',
           data: meanData,
-          color: '#1d4ed8', // bold blue
-          symbol: 'circle',
-          symbolSize: 5,
+          symbol: 'none',
+          showSymbol: false,
           lineStyle: {
-            width: 2
+            color: '#475569',
+            width: 2.5
           }
         }
       ]
     };
 
-    chart.setOption(option);
-
-    const handleResize = () => {
-      chart.resize();
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    chart.setOption(option, { notMerge: true, lazyUpdate: false });
   }, [hourlyStats, units]);
 
   return (
