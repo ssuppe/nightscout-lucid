@@ -13,13 +13,13 @@ RUN npm run build -- --base=$VITE_BASE
 
 ## Stage 2: Serve with Caddy
 
-#LABEL maintainer="theo@vanelsberg.com<e-mail address>"
-LABEL name="nightscout-lcuid"
-LABEL version="1.0.0"
-LABEL description="Dexcom Clarity-inspired glucose analytics dashboard"
-
 FROM caddy:alpine
 ARG VITE_BASE=/
+
+#LABEL maintainer="theo@vanelsberg.com<e-mail address>"
+LABEL name="nightscout-lucid"
+LABEL version="1.0.0"
+LABEL description="Dexcom Clarity-inspired glucose analytics dashboard"
 
 # Copy built assets into Caddy's default serve root
 COPY --from=build /app/dist /srv
@@ -31,6 +31,5 @@ RUN if [ "$VITE_BASE" != "/" ]; then \
       find /srv -mindepth 1 -maxdepth 1 ! -name "$SUBPATH" -exec mv {} /srv/$SUBPATH/ \; ; \
     fi
 
-# Use the production Caddyfile for this container using docker volume mounted at /etc/caddy/Caddyfile
-# volumes:
-#      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+# Get the production version of Caddyfile for this container
+COPY ./Caddyfile.prod /etc/caddy/Caddyfile
