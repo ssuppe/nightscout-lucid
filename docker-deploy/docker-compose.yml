@@ -8,14 +8,17 @@ services:
       # Set context for project (parent directory, needed for build sources)
       context: ../
 
-      # Set path to Dockerfile (relative to context)
+      # Set path to production version of the Dockerfile (relative to context)
       dockerfile: ./docker-deploy/Dockerfile
       args:
         - VITE_BASE=/
 
-    image: 'nightscout-lucid:latest'                          # Local image
-    image: '<image_repositoryname>/nightscout-lucid:latest'   # Image repository 
-    pull_policy: if_not_present                               # Optional
+    # Set image name for building
+    image: 'nightscout-lucid:latest'                            # Keep image local
+    # image: '<your_image_repositoryname>/nightscout-lucid:latest'  # Use remote Docker image registry (change to your own)
+
+    # Set pull policy for image registry (if using image registry)
+    pull_policy: if_not_present
 
     container_name: nightscout-lucid
     environment:
@@ -28,8 +31,6 @@ services:
 
     restart: unless-stopped
 
-    volumes:
-      # Mounte extern Caddyfile on container instance
-      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
-
-
+    #volumes:
+    #  # Optional: Mount external Caddyfile on container instance
+    #  - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
