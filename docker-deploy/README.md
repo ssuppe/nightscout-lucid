@@ -2,141 +2,144 @@
 
 ## Prerequisites
 
-- Docker / [Docker Desktop](https://docs.docker.com/) installed with commandline access
+- Docker / [Docker Desktop](https://docs.docker.com/) installed with command-line access
 
 - **Dockerfile**
 
-  Used to build the Nightscout Lucid docker image
+  Used to build the Nightscout Lucid Docker image.
 
 - **docker-compose.yml**
 
-  Docker compose file for building and running the docker container
+  Docker Compose file for building and running the Docker container.
 
 - **nightscout-lucid.env**
 
-  Applications environment varaible defintions
+  Application environment variable definitions.
 
 - **Caddyfile.prod**
-  Application Cadyfile production file (copy from main github reporsitory)
 
-## Use:
+  Application Caddy production file (copy from the main GitHub repository).
+
+## Use
 
 Update the following files for your use:
 
- - **nightscout-lucid.env** (environemnt parameters)
+- **nightscout-lucid.env** (environment parameters)
 
     ```
     NURSE_ACCESS_CODE=test
     NURSE_NIGHTSCOUT_URL=http://192.168.1.32:1337
     NURSE_NIGHTSCOUT_TOKEN=glucocheck-7d07fd946841cf35
     ```
+
 - **docker-compose.yml**
 
-Adapt the image reference to either a local image or (optional) an image in your docker image repsoitory, for instance in your docker repository at httos://hub.docker.com.
+  Adapt the image reference to either a local image or an optional image in your Docker repository, for instance on Docker Hub.
 
-# Building the docker image image
+# Building the Docker image
 
-1. Make sure Docker is installed on your system. From the commandline try running `docker system`
+1. Make sure Docker is installed on your system. From the command line, try running `docker system`.
 
-2. Clone this repository and build the image
+2. Clone this repository and build the image:
 
     ```
     git clone https://github.com/ssuppe/nightscout-lucid
     ```
 
-    Optonally, update the local version of `Cadyfile.prod` with a more resent version from the the repository:
+    Optionally, update the local version of `Caddyfile.prod` with a more recent version from the repository:
+
     ```
     cd docker-deploy
-    cp ../Cadyfile.prod .
+    cp ../Caddyfile.prod .
     ```
 
-
-3. Build the image
+3. Build the image:
 
     ```
-    cd nighscout-lucid/ docker-deploy
+    cd nightscout-lucid/docker-deploy
     docker compose build --no-cache
     ```
 
-    Any build errors will show her.
+    Any build errors will show here.
 
-4. Test the application
+4. Test the application:
 
     ```
-    docker compose up -d    
+    docker compose up -d
     ```
+
     Then open your browser at http://localhost:8120/
 
 5. *Optional*: Push the image to your docker image repository
 
-    Make sure the docker-compose.yml image is referencing the image in your docker repository. Example:
     ```
     image: 'myreponame/nightscout-lucid:latest'
     ```
 
-    To push the repo:
+    To push the image:
+
     ```
     docker compose push
     ```
-    
-    Note:
-    You will need to login docker for this.
+
+    Note: You will need to log in to Docker for this.
 
 Remark:
-By default this wil build a docker image based on your build envrionment's hardware platform. So for instance when building the docker image on Intel harware (x86-64) the resulting docker container image runs on a MacBook Pro (x86-64) but does not run a the MacBook Air (AMD64).
+By default this will build a Docker image based on your build environment's hardware platform. For example, when building the Docker image on Intel hardware (x86-64), the resulting Docker image will run on a MacBook Pro (x86-64) but may not run on a MacBook Air (ARM64).
 
 **Remarks:**
+
 ```
 pull_policy: if_not_present
 ```
-On startup docker compose with first search for the docker image referenced. If the image referenced is not local it will automatically downoaded.
 
-If the image referenced can not be found docker compose will try to build it. This will fail when this docker-deploy directory is not part of the local nightscout-lcuid git repository cloned.
+On startup, Docker Compose will first search for the referenced Docker image. If the referenced image is not local, it will be automatically downloaded.
 
-For testing you can remove the local docker image using:
+If the referenced image cannot be found, Docker Compose will try to build it. This will fail when this `docker-deploy` directory is not part of the local `nightscout-lucid` Git repository clone.
+
+For testing, you can remove the local Docker image using:
 
 ```
 docker images
 docker rmi <imageID>
 ```
 
-# Stand-alone depoyment
+# Stand-alone deployment
 
-To deploy the application, copy the 'docker-deply' directory to your hosting device. This could any device supporting Docker. For example a Synology NAS, a Raspberry Pi, Windows/WSL2+Ubuntu, a VM running locally or in the cloud or a hosting provider supporting Docker compose deployments.
+To deploy the application, copy the `docker-deploy` directory to your hosting device. This can be any device supporting Docker, such as a Synology NAS, a Raspberry Pi, Windows/WSL2+Ubuntu, a locally running VM, or a cloud host supporting Docker Compose deployments.
 
-##Installation:
+## Deployment & Installation
 
-1. Push the docker image to your docker image repository (e.g. Docker Hub)
-2. Copy the `docker-deply` directory to the hosting device
-3. Check the `image:` referece in the docker-compose.yml
-4. Change "nurse" ENV variable defeintions in `nightscout-lucid.env` to your needs
-5. Optional: Log in to docker with your Docker account (`docker login`)
+Before installing, **Push the Docker image** to your Docker repository (e.g. Docker Hub).
 
-With the above you should be able to start the approcation container using the docker CLI command `docker compose up -d`
+1. Copy the `docker-deploy` directory to the hosting device.
+2. Check the `image:` reference in `docker-compose.yml`.
+3. Change the `NURSE_*` environment variable definitions in `nightscout-lucid.env` to your needs.
+4. Optional: Log in to Docker with your Docker account (`docker login`).
 
-Withe above the application is available at http://localhost:8120.
-From there, configure you hosting device to make the application available on your network.
+With the above, you should be able to start the application container using the Docker CLI command `docker compose up -d`.
 
-## Debug en testing tips
+With the above, the application is available at http://localhost:8120/. From there, configure your hosting device to make the application available on your network.
 
-1. Run the container from the commandline without detaching by leaving out the '-d' argument. This ables you to trace the running containers serial output. Any startup errors will also show here.
+## Debug and testing tips
+
+1. Run the container from the command line without detaching by leaving out the `-d` argument. This enables you to trace the running container's serial output. Any startup errors will also show here.
 
     ```
     # CLI command:
     docker compose
     ```
 
+2. Log in to a running Docker container:
 
-2. Login to a running docker container.
     ```
     # CLI command:
-    docker exec -it /bin/bash
+    docker exec -it <container-name> /bin/sh
     ```
-   This will get you at the internal bash prompt of the running container instance. 
 
+   This will get you to the internal shell prompt of the running container instance.
 
 ## Related
 
 - [Docker Desktop](https://docs.docker.com/)  -> Install Docker
-
-- [Docker Hub](https://hub.docker.com/)       -> Deploy docker image to the Docker hub repository
+- [Docker Hub](https://hub.docker.com/)       -> Deploy Docker image to the Docker Hub repository
