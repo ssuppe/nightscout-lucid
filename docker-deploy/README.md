@@ -26,15 +26,26 @@ Update the following files for your use:
 
 - **nightscout-lucid.env** (environment parameters)
 
-    ```
-    NURSE_ACCESS_CODE=test
-    NURSE_NIGHTSCOUT_URL=http://192.168.1.32:1337
-    NURSE_NIGHTSCOUT_TOKEN=glucocheck-7d07fd946841cf35
-    ```
-
 - **docker-compose.yml**
 
-  Adapt the image reference to either a local image or an optional image in your Docker repository, for instance on Docker Hub.
+  Adapt the image reference to either a local image or optional an image in your Docker repository (e.g. on Docker Hub)
+
+### Running the application service
+
+- Start:
+
+      docker compose up -d
+
+- Stop:
+
+      docker compose down
+
+- Update to latest online docker image version (when docker-compose.yml references an online image):
+
+      docker compose pull
+      docker compose restart
+
+Once the service is running you can open the web application at http://localhost:8120
 
 # Building the Docker image
 
@@ -110,9 +121,10 @@ To deploy the application, copy the `docker-deploy` directory to your hosting de
 
 ## Deployment & Installation
 
-Before installing, **Push the Docker image** to your Docker repository (e.g. Docker Hub).
+Before installing the stand-alone version the **Docker image** should be available in the online Docker repository (e.g. Docker Hub):
+Double-check the image reference in the docker-compose.yml.
 
-1. Copy the `docker-deploy` directory to the hosting device.
+1. Copy the content of the `docker-deploy` directory (or use the `*release*.zip` file) to the hosting device.
 2. Check the `image:` reference in `docker-compose.yml`.
 3. Change the `NURSE_*` environment variable definitions in `nightscout-lucid.env` to your needs.
 4. Optional: Log in to Docker with your Docker account (`docker login`).
