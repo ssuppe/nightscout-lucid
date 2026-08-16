@@ -125,6 +125,9 @@ The AGP screen generates an Ambulatory Glucose Profile report featuring standard
      ```
      The dashboard will be available at `http://localhost:8120/`.
 
+   * **Standalone Deployment (For Self-Hosters):**
+     If you want to deploy without cloning the repository or running local builds, see the [Standalone Docker Deployment Guide](docker-deploy/README.md).
+
    * **Using Raw Docker CLI:**
      To build and run the container manually using the Docker CLI:
      ```bash
@@ -253,3 +256,10 @@ src/
 
 - [Nightscout docs](https://nightscout.github.io/)
 - [Dexcom Clarity](https://clarity.dexcom.com/)  -  the design inspiration
+
+---
+
+## Acknowledgments & Credits
+
+- Special thanks to [@vanelsberg](https://github.com/vanelsberg) for designing and building the standalone Docker deployment environment and release packaging (`docker-deploy/`).
+
