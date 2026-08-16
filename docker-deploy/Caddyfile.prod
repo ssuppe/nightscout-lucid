@@ -7,13 +7,13 @@
     # Route authorized nurse requests to Nightscout (root path)
     handle /api/nurse/* {
         @unauthorized_nurse {
-            not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE}"
+            not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE:unconfigured}"
         }
         respond @unauthorized_nurse "Unauthorized" 401
 
         uri strip_prefix /api/nurse
-        rewrite * {path}?{query}&token={$NURSE_NIGHTSCOUT_TOKEN}
-        reverse_proxy {$NURSE_NIGHTSCOUT_URL} {
+        rewrite * {path}?{query}&token={$NURSE_NIGHTSCOUT_TOKEN:}
+        reverse_proxy {$NURSE_NIGHTSCOUT_URL:http://127.0.0.1:8080} {
             header_up Host {upstream_hostport}
         }
     }
@@ -21,13 +21,13 @@
     # Route authorized nurse requests to Nightscout (clarity subpath compatibility)
     handle /clarity/api/nurse/* {
         @unauthorized_nurse {
-            not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE}"
+            not header X-Nurse-Access-Code "{$NURSE_ACCESS_CODE:unconfigured}"
         }
         respond @unauthorized_nurse "Unauthorized" 401
 
         uri strip_prefix /clarity/api/nurse
-        rewrite * {path}?{query}&token={$NURSE_NIGHTSCOUT_TOKEN}
-        reverse_proxy {$NURSE_NIGHTSCOUT_URL} {
+        rewrite * {path}?{query}&token={$NURSE_NIGHTSCOUT_TOKEN:}
+        reverse_proxy {$NURSE_NIGHTSCOUT_URL:http://127.0.0.1:8080} {
             header_up Host {upstream_hostport}
         }
     }
