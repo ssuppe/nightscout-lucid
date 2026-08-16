@@ -1,0 +1,36 @@
+# Standalone Docker Compose for Nightscout Lucid
+# Allows hosting the Dexcom Clarity style dashboard independently at http://localhost:8120/
+
+services:
+
+  nightscout-lucid:
+    build:
+      # Set context for project (parent directory, needed for build sources)
+      context: ../
+
+      # Set path to production version of the Dockerfile (relative to context)
+      dockerfile: ./docker-deploy/Dockerfile
+      args:
+        - VITE_BASE=/
+
+    # Set image name for building
+    image: 'nightscout-lucid:latest'                            # Keep image local
+    # image: '<your_image_repositoryname>/nightscout-lucid:latest'  # Use remote Docker image registry (change to your own)
+
+    # Set pull policy for image registry (if using image registry)
+    pull_policy: if_not_present
+
+    container_name: nightscout-lucid
+    environment:
+      - TZ=Europe/Amsterdam
+    env_file:
+      - path: ./nightscout-lucid.env
+        required: true                          # default
+    ports:
+      - '8120:80'                               # Map local port 80 (docker app) to 8120 (host)
+
+    restart: unless-stopped
+
+    #volumes:
+    #  # Optional: Mount external Caddyfile on container instance
+    #  - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro

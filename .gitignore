@@ -36,3 +36,6 @@ private.just
 # Local agent configuration
 .agents/
 
+# deployment files
+docker-deploy/releases/
+

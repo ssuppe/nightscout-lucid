@@ -1,0 +1,22 @@
+# Production files
+
+This directory should contain **production version files only**:
+
+### Docker production files
+- Caddyfile.prod
+- Dockerfile
+- docker-compose.yml
+
+### User configuration example
+- nightscout-lucid.env
+
+### Helper scripts
+- up.sh
+- down.sh
+- build.sh (for building a new docker image)
+- push.sh (for pushing the docker image to the docker registry repository)
+
+# Note:
+- Before building and deploying, make sure to update the *Docker production files*
+- For building the docker image, make sure this directory is part of the complete nighscout-lucid GitHub repository
+- For external host deployment, copy the content of this directory to the host (docker image will be downloaded from the docker registry)
