@@ -16,6 +16,7 @@ Runs in a Docker container serving a browser-only client report UI. All calculat
 - **Units Toggle** — Switch between mg/dL and mmol/L at any time
 - **Date Range** — 7, 14, 30, or 90-day windows
 - **Session-Only** — Credentials held in memory; nothing persisted to external servers
+- **Nurse Mode Access Code** — Lower the technical barrier for caregivers and medical staff by providing a simple pre-configured passkey that connects directly without exposing Nightscout URLs or read tokens
 - **PDF Download** — Compile and download multi-page, layout-aware PDF reports with custom headers
 - **CSV Export** — Export raw glucose entry levels and insulin/carb treatment logs to CSV
 
@@ -98,6 +99,17 @@ cd docker-deploy
 cp nightscout-lucid.env.example nightscout-lucid.env # Edit your credentials
 docker compose up -d
 ```
+
+### 3. Nurse Mode (Clinician & Caregiver Access)
+Self-hosters can configure Nurse Access credentials in their `.env` or `nightscout-lucid.env`:
+
+```env
+NURSE_ACCESS_CODE=your_simple_passcode
+NURSE_NIGHTSCOUT_URL=https://your-nightscout-url.com
+NURSE_NIGHTSCOUT_TOKEN=your_read_token
+```
+
+When enabled, medical staff, nurses, or caregivers can click **Nurse Access Code Login** and enter your simple passcode to pull up reports automatically. This lowers the technical bar for healthcare providers by eliminating the need to manually copy long API URLs or security tokens.
 
 For full standalone hosting setup instructions, see the [Docker Deployment Guide](docker-deploy/README.md).
 
