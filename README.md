@@ -4,8 +4,6 @@ A modern, Dexcom Clarity-inspired glucose analytics dashboard that connects dire
 
 Runs in a Docker container serving a browser-only client report UI. All calculations run client-side in your browser; no data is stored in the cloud.
 
-See the live demo at [https://goodnumbers.net/clarity](https://goodnumbers.net/clarity).
-
 ---
 
 ## Features
@@ -20,12 +18,6 @@ See the live demo at [https://goodnumbers.net/clarity](https://goodnumbers.net/c
 - **Session-Only** — Credentials held in memory; nothing persisted to external servers
 - **PDF Download** — Compile and download multi-page, layout-aware PDF reports with custom headers
 - **CSV Export** — Export raw glucose entry levels and insulin/carb treatment logs to CSV
-
----
-
-## AI-driven Development
-
-*Please note: This software was written primarily with AI, driven by a former software engineer. It has been reviewed and includes extensive math tests, but please verify numbers against your Nightscout instance.*
 
 ---
 
@@ -81,48 +73,77 @@ See the live demo at [https://goodnumbers.net/clarity](https://goodnumbers.net/c
 
 ---
 
-## Local Development
+## 🚀 User Guide (How to Run & Self-Host)
+
+### 1. Instant Web Browser Version
+You can use the live dashboard instantly without installing anything:
+👉 **[https://goodnumbers.net/clarity](https://goodnumbers.net/clarity)**
+
+### 2. Self-Hosting via Docker (As-Is)
+To run your own container instance on a Synology NAS, Raspberry Pi, Unraid, Portainer, or VPS:
+
+#### Option A: Download Standalone Release (No Git required)
+1. Download the latest `deployment.zip` from [GitHub Releases](https://github.com/ssuppe/nightscout-lucid/releases).
+2. Unzip it on your server or NAS.
+3. Edit `nightscout-lucid.env` with your Nightscout URL and read token.
+4. Run:
+   ```bash
+   docker compose up -d
+   ```
+   *(Or run `./up.sh`)*
+
+#### Option B: From a Cloned Git Repository
+```bash
+cd docker-deploy
+cp nightscout-lucid.env.example nightscout-lucid.env # Edit your credentials
+docker compose up -d
+```
+
+For full standalone hosting setup instructions, see the [Docker Deployment Guide](docker-deploy/README.md).
+
+---
+
+## 🛠️ Developer & Contributor Guide
 
 ### Prerequisites
 - Node.js 20+
-- A running Nightscout instance with a read token
+- npm
 
-### Setup
-1. **Install dependencies:**
+### Local Development Setup
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/ssuppe/nightscout-lucid.git
+   cd nightscout-lucid
+   ```
+
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-2. **Configure environment variables (Optional):**
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Start development server:**
+3. Start development server:
    ```bash
    npm run dev
    ```
-   Open `http://localhost:5173` and enter your Nightscout credentials.
+   Open `http://localhost:5173` in your browser.
 
 ### Testing
 ```bash
 npm test
 ```
-Runs the Vitest suite across components and math utilities.
+Runs the full Vitest suite across components and metrics logic.
 
-### Running with Docker
+### Building & Testing Local Docker Image
+To test a local container build compiled from your working tree:
 ```bash
 docker compose up --build -d
+# Accessible at http://localhost:8120/
 ```
-Accessible at `http://localhost:8120/`.
 
-For standalone server deployment, custom image builds, or self-hosting setups, see the [Docker Deployment Guide](docker-deploy/README.md).
-
----
-
-## Production & Maintainer Setup
-
-For maintainer deployment scripts (`just deploy`), SSH configuration, tarball packaging, and server task commands, see the [Maintainer & Deployment Guide](docs/MAINTAINERS.md).
+### Maintainer Publishing & Releases
+- For SSH server deployment commands (`just deploy`) and task runner info, see the [Maintainer & Deployment Guide](docs/MAINTAINERS.md).
+- To publish a release manually via `gh` CLI: `just release v1.0.0`.
+- To trigger automatic GitHub Release publishing, push a tag: `git tag v1.0.0 && git push origin v1.0.0`.
 
 ---
 
@@ -134,6 +155,12 @@ For maintainer deployment scripts (`just deploy`), SSH configuration, tarball pa
 - **Apache ECharts** (Visualizations)
 - **Vitest** + **React Testing Library** (Testing)
 - **Caddy** (Production HTTP server)
+
+---
+
+## AI-driven Development
+
+*Please note: This software was written primarily with AI, driven by a former software engineer. It has been reviewed and includes extensive math tests, but please verify numbers against your Nightscout instance.*
 
 ---
 

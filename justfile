@@ -36,6 +36,15 @@ run-local: build
     @echo "Running locally at http://localhost:8120/"
     docker run --rm -p 8120:80 {{IMAGE_NAME}}:latest
 
+# --- RELEASE ---
+# Package deployment ZIP and publish a release via gh CLI (e.g. `just release v1.0.0`)
+release version:
+    @echo "Building deployment release package..."
+    cd docker-deploy && bash make_release.sh
+    @ZIP_FILE=$$(ls -t docker-deploy/releases/*-deployment.zip | head -n 1); \
+    echo "Publishing GitHub Release {{version}} with $$ZIP_FILE..."; \
+    gh release create {{version}} "$$ZIP_FILE" --title "Release {{version}}" --notes "Standalone Docker deployment package for Nightscout Lucid."
+
 # --- PRIVATE IMPORTS ---
 # Load VM-specific deployment targets if they exist (git-ignored)
 import? "private.just"

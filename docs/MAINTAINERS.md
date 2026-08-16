@@ -59,6 +59,21 @@ just run-local
 # Accessible at http://localhost:8120/
 ```
 
+### 4. Creating Releases & Standalone Deployment ZIPs
+
+#### Automatic (GitHub Actions)
+Push a git tag matching `v*`:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+The [Release Workflow](../.github/workflows/release.yml) will automatically run `docker-deploy/make_release.sh`, create a GitHub Release, and attach `deployment.zip`.
+
+#### Manual (via `just` and `gh` CLI)
+```bash
+just release v1.0.0
+```
+
 ---
 
 ## Task Runner Reference (`just`)
@@ -71,4 +86,5 @@ just run-local
 | `just package` | Build and save image to a tarball |
 | `just deploy` | Full build, transfer, and deploy to production server |
 | `just run-local` | Run production container locally on port 8120 |
+| `just release <version>` | Build release ZIP and publish GitHub Release via `gh` CLI |
 | `just logs` | Tail container logs on the remote production server |
